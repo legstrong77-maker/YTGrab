@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YTGrab — YouTube 影片下載器</title>
+    <meta name="description" content="高品質 YouTube 影片與 MP3 音檔下載工具" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Animated background -->
+    <div class="bg-noise"></div>
+    <div class="bg-gradient"></div>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <main class="container">
+      <!-- Hero Header -->
+      <header class="hero">
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          <span>本機運行 · 安全私密</span>
+        </div>
+        <div class="hero-logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 56 56" width="56" height="56" fill="none">
+              <rect width="56" height="56" rx="16" fill="url(#lg)" />
+              <path d="M22 16v24l18-12-18-12z" fill="#fff" fill-opacity=".95" />
+              <defs>
+                <linearGradient id="lg" x1="0" y1="0" x2="56" y2="56">
+                  <stop stop-color="#FF0844" />
+                  <stop offset="1" stop-color="#FF6B6B" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div>
+            <h1>YTGrab</h1>
+            <p class="hero-tagline">YouTube 影片 & 音訊下載器</p>
+          </div>
+        </div>
+        <p class="hero-desc">
+          貼上影片連結，選擇格式與畫質，即刻下載到你的電腦
+        </p>
+
+        <!-- Feature pills -->
+        <div class="feature-pills">
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>支援 4K 畫質</span>
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>MP3 音訊擷取</span>
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>即時進度</span>
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>零廣告零追蹤</span>
+        </div>
+      </header>
+
+      <!-- URL Input Card -->
+      <section class="card glass input-card" id="inputSection">
+        <div class="card-glow"></div>
+        <div class="input-group">
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            <input
+              type="text"
+              id="urlInput"
+              placeholder="貼上 YouTube 影片網址，例如 https://youtube.com/watch?v=..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button id="clearBtn" class="clear-btn" title="清除">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <button id="fetchBtn" class="btn btn-primary btn-glow">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <span>解析影片</span>
+          </button>
+        </div>
+        <p class="input-hint">支援 youtube.com 與 youtu.be 連結格式</p>
+      </section>
+
+      <!-- Loading -->
+      <section class="card glass loading-card hidden" id="loadingSection">
+        <div class="loader">
+          <div class="loader-ring">
+            <div class="ring-segment"></div>
+            <div class="ring-segment"></div>
+            <div class="ring-segment"></div>
+          </div>
+          <div class="loader-text">
+            <p class="loader-title">解析中</p>
+            <p class="loader-sub">正在取得影片資訊...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Video Info + Download Options -->
+      <section class="card glass info-card hidden" id="infoSection">
+        <div class="video-info">
+          <div class="thumbnail-wrap">
+            <img id="thumbnail" alt="影片縮圖" />
+            <div class="thumbnail-overlay">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </div>
+            <span class="duration-badge" id="duration"></span>
+          </div>
+          <div class="video-meta">
+            <h2 id="videoTitle" class="video-title"></h2>
+            <div class="meta-chips">
+              <span class="meta-chip" id="uploader">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span></span>
+              </span>
+              <span class="meta-chip" id="views">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span></span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Mode Selection -->
+        <div class="section-label">下載格式</div>
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="video" id="modeVideo">
+            <div class="mode-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="20" height="16" rx="3" ry="3" /><polygon points="10 9 16 12 10 15 10 9" fill="currentColor" stroke="none"/>
+              </svg>
+            </div>
+            <div class="mode-label">
+              <span class="mode-name">影片 MP4</span>
+              <span class="mode-desc">含影像與聲音</span>
+            </div>
+          </button>
+          <button class="mode-btn" data-mode="audio" id="modeAudio">
+            <div class="mode-icon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+            <div class="mode-label">
+              <span class="mode-name">音訊 MP3</span>
+              <span class="mode-desc">僅擷取聲音</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Quality Selection -->
+        <div class="quality-selector" id="qualitySection">
+          <div class="section-label">畫質選擇</div>
+          <div class="quality-options" id="qualityOptions"></div>
+        </div>
+
+        <button id="downloadBtn" class="btn btn-download btn-glow">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>開始下載</span>
+        </button>
+      </section>
+
+      <!-- Progress -->
+      <section class="card glass progress-card hidden" id="progressSection">
+        <div class="progress-header">
+          <div class="progress-icon-wrap">
+            <svg class="progress-spin-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+          </div>
+          <div>
+            <h3>下載中</h3>
+            <p class="progress-sub" id="progressFilename"></p>
+          </div>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-bar-shimmer"></div>
+          </div>
+        </div>
+        <div class="progress-stats">
+          <div class="stat">
+            <span class="stat-value" id="progressPercent">0%</span>
+            <span class="stat-label">進度</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="progressSize">--</span>
+            <span class="stat-label">大小</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="progressSpeed">--</span>
+            <span class="stat-label">速度</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="progressEta">--</span>
+            <span class="stat-label">剩餘時間</span>
+          </div>
+        </div>
+        <details class="log-details">
+          <summary>查看詳細日誌</summary>
+          <div class="log-area" id="logArea"></div>
+        </details>
+      </section>
+
+      <!-- Done -->
+      <section class="card glass done-card hidden" id="doneSection">
+        <div class="done-check">
+          <svg viewBox="0 0 60 60" width="60" height="60">
+            <circle cx="30" cy="30" r="28" fill="none" stroke="url(#doneGrad)" stroke-width="2.5" class="done-circle"/>
+            <polyline points="18 30 27 39 42 22" fill="none" stroke="url(#doneGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="done-tick"/>
+            <defs>
+              <linearGradient id="doneGrad" x1="0" y1="0" x2="60" y2="60">
+                <stop stop-color="#00E676"/>
+                <stop offset="1" stop-color="#00C853"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h3>下載完成！</h3>
+        <p id="doneFilename" class="done-filename"></p>
+        <div class="done-actions">
+          <a id="doneDownloadLink" class="btn btn-primary btn-glow" download>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>儲存檔案</span>
+          </a>
+          <button id="newDownloadBtn" class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>下載其他影片</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- How It Works Section -->
+      <section class="how-it-works" id="howItWorks">
+        <h2 class="section-heading">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          運作原理
+        </h2>
+        <p class="section-intro">
+          YTGrab 完全在你的電腦本機運行，不經過任何第三方伺服器。以下是完整的技術流程：
+        </p>
+
+        <div class="flow-diagram">
+          <div class="flow-step">
+            <div class="flow-number">1</div>
+            <div class="flow-content">
+              <h4>解析影片資訊</h4>
+              <p>當你貼上 YouTube 網址後，後端使用 <code>yt-dlp</code> 的 <code>--dump-json</code> 指令向 YouTube 發出請求，解析出影片標題、縮圖、可用畫質、時長等完整 metadata。</p>
+              <div class="code-block">
+                <span class="code-lang">Shell</span>
+                <code>yt-dlp --dump-json --no-playlist "https://youtube.com/watch?v=..."</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-connector">
+            <svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg>
+          </div>
+
+          <div class="flow-step">
+            <div class="flow-number">2</div>
+            <div class="flow-content">
+              <h4>選擇格式與畫質</h4>
+              <p>YouTube 對每部影片儲存了多個串流：影像軌（不同解析度）與音訊軌是<strong>分開儲存</strong>的。你選擇的畫質會對應到一個影像格式 ID，系統會自動搭配最佳音訊軌。</p>
+              <div class="tech-note">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.5 3h1v1h-1V4zm.5 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z"/></svg>
+                <span>YouTube 的 1080p 以上影片，影像與音訊永遠是分開的 adaptive stream</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-connector">
+            <svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg>
+          </div>
+
+          <div class="flow-step">
+            <div class="flow-number">3</div>
+            <div class="flow-content">
+              <h4>下載串流</h4>
+              <p><code>yt-dlp</code> 分別下載選定的影像軌與音訊軌。下載過程透過 <strong>WebSocket</strong> 即時回傳進度百分比、下載速度與預估剩餘時間到你的瀏覽器。</p>
+              <div class="code-block">
+                <span class="code-lang">Shell</span>
+                <code>yt-dlp -f "bestvideo[height<=1080]+bestaudio" --merge-output-format mp4 ...</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-connector">
+            <svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg>
+          </div>
+
+          <div class="flow-step">
+            <div class="flow-number">4</div>
+            <div class="flow-content">
+              <h4>合併 / 轉換</h4>
+              <p>下載完成後，<code>FFmpeg</code> 負責將影像軌與音訊軌<strong>無損合併</strong>（mux）為單一 MP4 檔案。若選擇 MP3 模式，則由 FFmpeg 將音訊從 Opus/AAC 轉碼為 MP3 格式（320kbps VBR）。</p>
+              <div class="tech-note">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.5 3h1v1h-1V4zm.5 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z"/></svg>
+                <span>合併過程不會重新編碼影像，所以速度非常快且不損畫質</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-connector">
+            <svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg>
+          </div>
+
+          <div class="flow-step">
+            <div class="flow-number">5</div>
+            <div class="flow-content">
+              <h4>檔案回傳</h4>
+              <p>合併後的檔案儲存在本機 <code>downloads/</code> 資料夾，瀏覽器透過 Express 靜態檔案服務取得下載連結。點擊「儲存檔案」即可將檔案另存到你想要的位置。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tech Stack -->
+        <div class="tech-stack">
+          <h3>技術堆疊</h3>
+          <div class="tech-grid">
+            <div class="tech-item">
+              <div class="tech-icon tech-icon-ytdlp">yt-dlp</div>
+              <div class="tech-info">
+                <strong>yt-dlp</strong>
+                <span>開源影片下載引擎，支援數千個影音網站，持續更新以繞過平台限制</span>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-icon tech-icon-ffmpeg">FF</div>
+              <div class="tech-info">
+                <strong>FFmpeg</strong>
+                <span>業界標準的多媒體處理框架，負責影音串流的合併、轉碼與封裝</span>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-icon tech-icon-node">JS</div>
+              <div class="tech-info">
+                <strong>Node.js + Express</strong>
+                <span>輕量級 Web 伺服器，處理 API 請求並透過 Socket.IO 提供即時通訊</span>
+              </div>
+            </div>
+            <div class="tech-item">
+              <div class="tech-icon tech-icon-ws">WS</div>
+              <div class="tech-info">
+                <strong>WebSocket</strong>
+                <span>全雙工通訊協定，實現下載進度的毫秒級即時推送</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Architecture diagram -->
+        <div class="arch-diagram">
+          <h3>系統架構</h3>
+          <div class="arch-flow">
+            <div class="arch-node arch-browser">
+              <div class="arch-node-icon">🌐</div>
+              <span>瀏覽器</span>
+              <small>前端 UI</small>
+            </div>
+            <div class="arch-arrow">
+              <span>HTTP / WS</span>
+              <svg viewBox="0 0 60 12" width="60" height="12"><path d="M0 6h52m-8-5 8 5-8 5" fill="none" stroke="rgba(255,8,68,0.5)" stroke-width="1.5"/></svg>
+            </div>
+            <div class="arch-node arch-server">
+              <div class="arch-node-icon">⚙️</div>
+              <span>Node.js</span>
+              <small>Express 伺服器</small>
+            </div>
+            <div class="arch-arrow">
+              <span>spawn</span>
+              <svg viewBox="0 0 60 12" width="60" height="12"><path d="M0 6h52m-8-5 8 5-8 5" fill="none" stroke="rgba(255,8,68,0.5)" stroke-width="1.5"/></svg>
+            </div>
+            <div class="arch-node arch-engine">
+              <div class="arch-node-icon">🔧</div>
+              <span>yt-dlp</span>
+              <small>+ FFmpeg</small>
+            </div>
+            <div class="arch-arrow">
+              <span>HTTPS</span>
+              <svg viewBox="0 0 60 12" width="60" height="12"><path d="M0 6h52m-8-5 8 5-8 5" fill="none" stroke="rgba(255,8,68,0.5)" stroke-width="1.5"/></svg>
+            </div>
+            <div class="arch-node arch-yt">
+              <div class="arch-node-icon">▶️</div>
+              <span>YouTube</span>
+              <small>影片伺服器</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>Built with <span class="heart">♥</span> using yt-dlp + FFmpeg + Node.js</p>
+        <p class="footer-sub">所有操作皆於本機執行，您的資料不會上傳至任何伺服器</p>
+      </footer>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
