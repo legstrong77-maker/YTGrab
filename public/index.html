@@ -752,6 +752,10 @@
             <button class="bd-seg" data-op="compress">🗜 壓縮</button>
             <button class="bd-seg" data-op="gif">🎞 GIF</button>
             <button class="bd-seg" data-op="thumb">🖼 縮圖</button>
+            <button class="bd-seg" data-op="normalize">🔊 音量正規化</button>
+            <button class="bd-seg" data-op="vertical">📱 直式短影音</button>
+            <button class="bd-seg" data-op="rotate">🔁 旋轉</button>
+            <button class="bd-seg" data-op="speed">⏩ 變速</button>
           </div>
 
           <!-- 轉檔 -->
@@ -796,6 +800,40 @@
           <div class="tb-params hidden" id="tbp-thumb">
             <span class="tb-plabel">擷取時間點</span>
             <input type="text" id="tbThumbTime" class="ts-input clip-input" placeholder="例 1:23" style="max-width:160px" />
+          </div>
+
+          <!-- 音量正規化 -->
+          <div class="tb-params hidden" id="tbp-normalize">
+            <p class="ts-hint" style="margin:0">自動把音量調整到串流平台標準（−16 LUFS）。太小聲、或忽大忽小的影片很有用；只處理聲音、不動畫面，速度快。</p>
+          </div>
+
+          <!-- 直式短影音 -->
+          <div class="tb-params hidden" id="tbp-vertical">
+            <span class="tb-plabel">填充方式（輸出 1080×1920，適合 Shorts / Reels / TikTok）</span>
+            <div class="bd-seg-group" id="tbFit">
+              <button class="bd-seg active" data-fit="blur">模糊背景</button>
+              <button class="bd-seg" data-fit="crop">裁切置中</button>
+            </div>
+          </div>
+
+          <!-- 旋轉 -->
+          <div class="tb-params hidden" id="tbp-rotate">
+            <span class="tb-plabel">旋轉方向</span>
+            <div class="bd-seg-group" id="tbDir">
+              <button class="bd-seg active" data-dir="cw">⟳ 順時針 90°</button>
+              <button class="bd-seg" data-dir="ccw">⟲ 逆時針 90°</button>
+              <button class="bd-seg" data-dir="180">180°</button>
+            </div>
+          </div>
+
+          <!-- 變速 -->
+          <div class="tb-params hidden" id="tbp-speed">
+            <span class="tb-plabel">播放速度</span>
+            <div class="bd-seg-group" id="tbRate">
+              <button class="bd-seg" data-rate="0.5">0.5×（慢動作）</button>
+              <button class="bd-seg" data-rate="1.5">1.5×</button>
+              <button class="bd-seg active" data-rate="2">2×（快轉）</button>
+            </div>
           </div>
 
           <button class="btn btn-download btn-glow" id="tbGo">

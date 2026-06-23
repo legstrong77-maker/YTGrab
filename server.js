@@ -459,6 +459,33 @@ io.on("connection", (socket) => {
       outExt = "jpg";
       label = "縮圖";
       args = ["-ss", String(p.time || "0").trim() || "0", "-i", src, "-frames:v", "1", "-q:v", "2"];
+    } else if (op === "normalize") {
+      outExt = "mp4";
+      label = "音量正規化";
+      args = ["-i", src, "-c:v", "copy", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+        "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"];
+    } else if (op === "vertical") {
+      outExt = "mp4";
+      label = "直式短影音";
+      const vf = p.fit === "crop"
+        ? "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
+        : "split[a][b];[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=20[bg];[b]scale=1080:1920:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2";
+      args = ["-i", src, "-vf", vf, "-c:a", "copy", "-c:v", "h264_nvenc", "-cq", "25", "-movflags", "+faststart"];
+      fallbackArgs = ["-y", "-i", src, "-vf", vf, "-c:a", "copy", "-c:v", "libx264", "-crf", "23", "-movflags", "+faststart"];
+    } else if (op === "rotate") {
+      outExt = "mp4";
+      label = "旋轉";
+      const vf = p.dir === "ccw" ? "transpose=2" : p.dir === "180" ? "transpose=1,transpose=1" : "transpose=1";
+      args = ["-i", src, "-vf", vf, "-c:a", "copy", "-c:v", "h264_nvenc", "-cq", "23", "-movflags", "+faststart"];
+      fallbackArgs = ["-y", "-i", src, "-vf", vf, "-c:a", "copy", "-c:v", "libx264", "-crf", "20", "-movflags", "+faststart"];
+    } else if (op === "speed") {
+      outExt = "mp4";
+      label = "變速";
+      const rate = ["0.5", "1.5", "2"].includes(String(p.rate)) ? String(p.rate) : "2";
+      args = ["-i", src, "-vf", `setpts=PTS/${rate}`, "-af", `atempo=${rate}`,
+        "-c:v", "h264_nvenc", "-cq", "23", "-c:a", "aac", "-movflags", "+faststart"];
+      fallbackArgs = ["-y", "-i", src, "-vf", `setpts=PTS/${rate}`, "-af", `atempo=${rate}`,
+        "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart"];
     } else {
       socket.emit("tool-error", "未知操作");
       return;

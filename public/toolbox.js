@@ -4,7 +4,8 @@
 
   const sourceSel = $("#tbSource");
   let op = "convert";
-  const sub = { format: "mp4", quality: "medium", scale: "keep" };
+  const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2" };
+  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed"];
 
   // ---- 載入下載紀錄當來源 ----
   async function loadSources() {
@@ -38,9 +39,7 @@
       document.querySelectorAll("#tbOps .bd-seg").forEach((x) => x.classList.remove("active"));
       b.classList.add("active");
       op = b.dataset.op;
-      ["convert", "compress", "gif", "thumb"].forEach((o) =>
-        $("#tbp-" + o).classList.toggle("hidden", o !== op)
-      );
+      ALL_OPS.forEach((o) => $("#tbp-" + o).classList.toggle("hidden", o !== op));
     })
   );
 
@@ -48,6 +47,9 @@
   segGroup("#tbFmt", "fmt", (v) => (sub.format = v));
   segGroup("#tbQ", "q", (v) => (sub.quality = v));
   segGroup("#tbScale", "scale", (v) => (sub.scale = v));
+  segGroup("#tbFit", "fit", (v) => (sub.fit = v));
+  segGroup("#tbDir", "dir", (v) => (sub.dir = v));
+  segGroup("#tbRate", "rate", (v) => (sub.rate = v));
   function segGroup(sel, attr, set) {
     document.querySelectorAll(sel + " .bd-seg").forEach((b) =>
       b.addEventListener("click", () => {
@@ -65,7 +67,10 @@
   const stage = $("#tbStage");
   const err = $("#tbErr");
   const result = $("#tbResult");
-  const opLabel = { convert: "轉檔", compress: "壓縮", gif: "製作 GIF", thumb: "擷取縮圖" };
+  const opLabel = {
+    convert: "轉檔", compress: "壓縮", gif: "製作 GIF", thumb: "擷取縮圖",
+    normalize: "音量正規化", vertical: "轉直式", rotate: "旋轉", speed: "變速",
+  };
 
   go.addEventListener("click", () => {
     err.classList.add("hidden");
@@ -84,13 +89,20 @@
       params.width = $("#tbGifW").value;
     } else if (op === "thumb") {
       params.time = $("#tbThumbTime").value;
+    } else if (op === "vertical") {
+      params.fit = sub.fit;
+    } else if (op === "rotate") {
+      params.dir = sub.dir;
+    } else if (op === "speed") {
+      params.rate = sub.rate;
     }
 
     go.disabled = true;
     result.classList.add("hidden");
     prog.classList.remove("hidden");
     bar.style.width = "5%";
-    stage.textContent = opLabel[op] + "中…" + (op === "compress" ? "（重新編碼，可能需要一些時間）" : "");
+    const heavy = ["compress", "vertical", "rotate", "speed"].includes(op);
+    stage.textContent = opLabel[op] + "中…" + (heavy ? "（重新編碼，可能需要一些時間）" : "");
 
     socket.emit("tool", { sourceId, op, params });
   });
