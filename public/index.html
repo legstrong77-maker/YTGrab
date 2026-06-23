@@ -142,7 +142,11 @@
         </summary>
         <div class="bd-body">
           <textarea id="bdUrls" class="ts-input ts-textarea" rows="3" placeholder="一行一個網址，可一次貼多個…&#10;https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..."></textarea>
-          <button type="button" class="ts-paste" id="bdPaste">📋 貼上剪貼簿</button>
+          <div class="ts-hint-row">
+            <button type="button" class="ts-paste" id="bdPaste">📋 貼上剪貼簿</button>
+            <button type="button" class="ts-paste" id="bdExpand">🔗 展開播放清單</button>
+            <span class="ts-hint">貼一個播放清單網址，按「展開」自動填入所有影片。</span>
+          </div>
           <div class="bd-controls">
             <div class="bd-seg-group" id="bdMode">
               <button class="bd-seg active" data-mode="video">🎬 影片 MP4</button>
@@ -241,6 +245,17 @@
           <div class="section-label">畫質選擇</div>
           <div class="quality-options" id="qualityOptions"></div>
         </div>
+
+        <!-- Clip (optional) -->
+        <details class="clip-box">
+          <summary class="clip-summary">✂️ 剪裁片段（選填）— 只下載某段時間</summary>
+          <div class="clip-row">
+            <input type="text" id="clipStart" class="ts-input clip-input" placeholder="開始 例 0:30" spellcheck="false" />
+            <span class="clip-arrow">→</span>
+            <input type="text" id="clipEnd" class="ts-input clip-input" placeholder="結束 例 1:45" spellcheck="false" />
+          </div>
+          <p class="clip-hint">時間格式：<code>分:秒</code> 或 <code>時:分:秒</code>。開始留空＝從頭、結束留空＝到尾。</p>
+        </details>
 
         <button id="downloadBtn" class="btn btn-download btn-glow">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -539,6 +554,7 @@
             <textarea id="tsUrl" class="ts-input ts-textarea" rows="3" placeholder="一行一個網址，可一次貼多個（YouTube / Facebook / Instagram）…&#10;https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..." spellcheck="false"></textarea>
             <div class="ts-hint-row">
               <button type="button" class="ts-paste" id="tsPaste">📋 貼上剪貼簿</button>
+              <button type="button" class="ts-paste" id="tsExpand">🔗 展開播放清單</button>
               <span class="ts-hint">會由上到下「依序」逐字稿，全部完成後可一次打包下載。</span>
             </div>
           </div>
@@ -645,6 +661,13 @@
         <p class="footer-sub">所有操作皆於本機執行；請只下載自己擁有、公開可用或已獲授權的內容</p>
       </footer>
     </main>
+
+    <div id="dropOverlay" class="drop-overlay">
+      <div class="drop-overlay-inner">
+        <div class="drop-overlay-icon">🎙</div>
+        <div>放開檔案即上傳轉逐字稿</div>
+      </div>
+    </div>
 
     <div id="toastWrap" class="toast-wrap"></div>
 

@@ -246,11 +246,15 @@ window.toast = (msg, type = "ok") => {
     progressFilename.textContent = `${currentPlatform || "影片"} · ${videoTitle.textContent || "下載中"}`;
     logArea.textContent = "";
 
+    const cs = $("#clipStart");
+    const ce = $("#clipEnd");
     socket.emit("download", {
       url: currentUrl,
       mode: currentMode,
       quality: currentMode === "video" ? currentQuality : null,
       title: videoTitle.textContent || "",
+      clipStart: cs ? cs.value : "",
+      clipEnd: ce ? ce.value : "",
     });
   });
 
@@ -284,6 +288,10 @@ window.toast = (msg, type = "ok") => {
   newDownloadBtn.addEventListener("click", () => {
     urlInput.value = "";
     clearBtn.classList.remove("visible");
+    const cs = $("#clipStart");
+    const ce = $("#clipEnd");
+    if (cs) cs.value = "";
+    if (ce) ce.value = "";
     renderPlatformStatus("");
     showOnly("input");
     urlInput.focus();

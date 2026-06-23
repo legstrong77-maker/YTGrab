@@ -216,10 +216,54 @@ app.get("/api/info", async (req, res) => {
   });
 });
 
+// 展開播放清單 → 回傳裡面每支影片的網址與標題
+app.get("/api/playlist", (req, res) => {
+  const url = req.query.url;
+  if (!url) return res.status(400).json({ error: "缺少 URL" });
+  const args = [
+    "-m", "yt_dlp",
+    "--flat-playlist",
+    "--dump-json",
+    "--ffmpeg-location", FFMPEG_DIR,
+    url,
+  ];
+  const proc = spawn("python", args, {
+    env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+  });
+  let data = "";
+  let err = "";
+  proc.stdout.on("data", (c) => (data += c.toString("utf-8")));
+  proc.stderr.on("data", (c) => (err += c.toString("utf-8")));
+  proc.on("close", (code) => {
+    if (code !== 0 && !data.trim()) {
+      return res.status(500).json({ error: err || "無法解析播放清單" });
+    }
+    const items = [];
+    for (const line of data.split("\n")) {
+      const s = line.trim();
+      if (!s) continue;
+      try {
+        const e = JSON.parse(s);
+        const vurl =
+          e.url && /^https?:/.test(e.url)
+            ? e.url
+            : e.id
+            ? `https://www.youtube.com/watch?v=${e.id}`
+            : null;
+        if (vurl) items.push({ url: vurl, title: e.title || vurl });
+      } catch {}
+    }
+    if (!items.length) {
+      return res.status(400).json({ error: "這個網址不是播放清單，或裡面沒有影片" });
+    }
+    res.json({ count: items.length, items });
+  });
+});
+
 // Socket.io for download with progress
 io.on("connection", (socket) => {
   socket.on("download", (opts) => {
-    const { url, mode, quality, title } = opts;
+    const { url, mode, quality, title, clipStart, clipEnd } = opts;
     const platform = getPlatform(url);
     if (!platform.supported) {
       socket.emit("error", platform.error);
@@ -244,6 +288,13 @@ io.on("connection", (socket) => {
         ? `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`
         : "bestvideo+bestaudio/best";
       args.push("-f", fmt, "--merge-output-format", "mp4");
+    }
+
+    // 剪裁：只下載指定時間段（a→b）
+    const ts = (s) => String(s || "").trim();
+    if (ts(clipStart) || ts(clipEnd)) {
+      const section = `*${ts(clipStart) || "0:00"}-${ts(clipEnd) || "inf"}`;
+      args.push("--download-sections", section, "--force-keyframes-at-cuts");
     }
 
     args.push("-o", outTemplate, url);

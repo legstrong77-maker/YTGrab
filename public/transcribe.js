@@ -539,5 +539,51 @@
     }
   });
 
+  // ---- 展開播放清單 ----
+  $("#tsExpand").addEventListener("click", () => {
+    if (window.expandPlaylist) window.expandPlaylist($("#tsUrl"), $("#tsExpand"));
+  });
+
+  // ---- Ctrl/Cmd+Enter 送出 ----
+  $("#tsUrl").addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      go.click();
+    }
+  });
+
+  // ---- 整頁拖曳上傳 → 自動切到逐字稿檔案模式 ----
+  const dropOverlay = $("#dropOverlay");
+  let dragDepth = 0;
+  const hasFiles = (e) =>
+    e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  window.addEventListener("dragenter", (e) => {
+    if (!hasFiles(e)) return;
+    dragDepth++;
+    dropOverlay.classList.add("show");
+  });
+  window.addEventListener("dragover", (e) => {
+    if (hasFiles(e)) e.preventDefault();
+  });
+  window.addEventListener("dragleave", () => {
+    dragDepth--;
+    if (dragDepth <= 0) {
+      dragDepth = 0;
+      dropOverlay.classList.remove("show");
+    }
+  });
+  window.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    dropOverlay.classList.remove("show");
+    const fl = e.dataTransfer.files;
+    if (!fl || !fl.length) return;
+    document.querySelector('.tool-tab[data-view="transcribe"]').click();
+    document.querySelector('.ts-source .mode-btn[data-src="file"]').click();
+    setFiles(fl);
+    window.toast(`已加入 ${fl.length} 個檔案，按「開始轉逐字稿」`);
+  });
+
   updateBatchDownloadButtons();
 })();

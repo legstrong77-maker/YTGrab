@@ -161,6 +161,40 @@
     }
   });
 
+  // 展開播放清單（共用，transcribe.js 也會用）
+  async function expandPlaylist(box, btn) {
+    const first = box.value.split("\n").map((s) => s.trim()).filter(Boolean)[0];
+    if (!first) {
+      window.toast("請先貼上一個播放清單網址", "err");
+      return;
+    }
+    const old = btn.textContent;
+    btn.textContent = "展開中…";
+    btn.disabled = true;
+    try {
+      const r = await fetch(`/api/playlist?url=${encodeURIComponent(first)}`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "展開失敗");
+      box.value = d.items.map((it) => it.url).join("\n");
+      window.toast(`已展開 ${d.count} 支影片`);
+    } catch (e) {
+      window.toast(e.message || "展開失敗", "err");
+    } finally {
+      btn.textContent = old;
+      btn.disabled = false;
+    }
+  }
+  window.expandPlaylist = expandPlaylist;
+  $("#bdExpand").addEventListener("click", () => expandPlaylist(urlsEl, $("#bdExpand")));
+
+  // Ctrl/Cmd+Enter 送出
+  urlsEl.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      goBtn.click();
+    }
+  });
+
   function addDoneLink(row, data) {
     const actions = row.querySelector(".ts-item-actions");
     actions.innerHTML = "";
