@@ -86,6 +86,10 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M6 14h4"/><path d="M14 14h4"/></svg>
           <span>影片加字幕</span>
         </button>
+        <button class="tool-tab" data-view="toolbox">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.3l-6.4 6.4a1.4 1.4 0 0 0 2 2l6.4-6.4a4 4 0 0 0 5.3-5.6l-2.4 2.4-2-2 2.7-2.1z"/></svg>
+          <span>影片工具</span>
+        </button>
       </div>
 
       <!-- Theme color swatches -->
@@ -730,6 +734,98 @@
         </section>
       </div><!-- /view-subtitle -->
 
+      <!-- ============ TOOLBOX VIEW ============ -->
+      <div id="view-toolbox" class="tool-view">
+        <section class="card glass">
+          <div class="card-glow"></div>
+
+          <div class="section-label">來源影片（從下載紀錄選）</div>
+          <div class="hist-toolbar">
+            <select id="tbSource" class="ts-input"></select>
+            <button type="button" class="btn btn-ghost ts-mini" id="tbRefresh">↻ 重新整理</button>
+          </div>
+          <p class="ts-hint">先在「影片下載」下載影片，這裡就能直接拿來處理，不用重新上傳。</p>
+
+          <div class="section-label" style="margin-top:20px">要做什麼</div>
+          <div class="bd-seg-group tb-ops" id="tbOps">
+            <button class="bd-seg active" data-op="convert">🔄 轉檔/音訊</button>
+            <button class="bd-seg" data-op="compress">🗜 壓縮</button>
+            <button class="bd-seg" data-op="gif">🎞 GIF</button>
+            <button class="bd-seg" data-op="thumb">🖼 縮圖</button>
+          </div>
+
+          <!-- 轉檔 -->
+          <div class="tb-params" id="tbp-convert">
+            <span class="tb-plabel">輸出格式</span>
+            <div class="bd-seg-group" id="tbFmt">
+              <button class="bd-seg active" data-fmt="mp4">MP4</button>
+              <button class="bd-seg" data-fmt="mkv">MKV</button>
+              <button class="bd-seg" data-fmt="mp3">MP3</button>
+              <button class="bd-seg" data-fmt="wav">WAV</button>
+            </div>
+          </div>
+
+          <!-- 壓縮 -->
+          <div class="tb-params hidden" id="tbp-compress">
+            <span class="tb-plabel">畫質</span>
+            <div class="bd-seg-group" id="tbQ">
+              <button class="bd-seg" data-q="high">高</button>
+              <button class="bd-seg active" data-q="medium">中</button>
+              <button class="bd-seg" data-q="low">低（最小）</button>
+            </div>
+            <span class="tb-plabel">解析度</span>
+            <div class="bd-seg-group" id="tbScale">
+              <button class="bd-seg active" data-scale="keep">原畫質</button>
+              <button class="bd-seg" data-scale="1080">1080p</button>
+              <button class="bd-seg" data-scale="720">720p</button>
+              <button class="bd-seg" data-scale="480">480p</button>
+            </div>
+          </div>
+
+          <!-- GIF -->
+          <div class="tb-params hidden" id="tbp-gif">
+            <div class="tb-grid">
+              <label>開始<input type="text" id="tbGifStart" class="ts-input" placeholder="0:00" /></label>
+              <label>結束<input type="text" id="tbGifEnd" class="ts-input" placeholder="0:05" /></label>
+              <label>FPS<input type="number" id="tbGifFps" class="ts-input" value="12" min="1" max="30" /></label>
+              <label>寬度<input type="number" id="tbGifW" class="ts-input" value="400" min="64" max="1024" /></label>
+            </div>
+          </div>
+
+          <!-- 縮圖 -->
+          <div class="tb-params hidden" id="tbp-thumb">
+            <span class="tb-plabel">擷取時間點</span>
+            <input type="text" id="tbThumbTime" class="ts-input clip-input" placeholder="例 1:23" style="max-width:160px" />
+          </div>
+
+          <button class="btn btn-download btn-glow" id="tbGo">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.3l-6.4 6.4a1.4 1.4 0 0 0 2 2l6.4-6.4a4 4 0 0 0 5.3-5.6l-2.4 2.4-2-2 2.7-2.1z"/></svg>
+            <span>開始處理</span>
+          </button>
+
+          <div class="ts-progress hidden" id="tbProg">
+            <div class="progress-bar-wrap"><div class="progress-bar" id="tbBar"><div class="progress-bar-shimmer"></div></div></div>
+            <p class="ts-stage" id="tbStage">處理中…</p>
+          </div>
+          <p class="ts-err hidden" id="tbErr"></p>
+        </section>
+
+        <section class="card glass done-card hidden" id="tbResult">
+          <div class="done-check">
+            <svg viewBox="0 0 60 60" width="60" height="60"><circle cx="30" cy="30" r="28" fill="none" stroke="url(#tgrad)" stroke-width="2.5"/><polyline points="18 30 27 39 42 22" fill="none" stroke="url(#tgrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="tgrad" x1="0" y1="0" x2="60" y2="60"><stop stop-color="#00E676"/><stop offset="1" stop-color="#00C853"/></linearGradient></defs></svg>
+          </div>
+          <h3>處理完成！</h3>
+          <p id="tbResultName" class="done-filename"></p>
+          <div class="done-actions">
+            <a id="tbDownload" class="btn btn-primary btn-glow" download>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>下載結果</span>
+            </a>
+            <button id="tbAgain" class="btn btn-ghost">再處理一個</button>
+          </div>
+        </section>
+      </div><!-- /view-toolbox -->
+
       <!-- Footer -->
       <footer class="footer">
         <p>Built with <span class="heart">♥</span> using yt-dlp + FFmpeg + Node.js</p>
@@ -751,6 +847,7 @@
     <script src="batch-download.js"></script>
     <script src="download-history.js"></script>
     <script src="burn.js"></script>
+    <script src="toolbox.js"></script>
     <script src="transcribe.js"></script>
   </body>
 </html>

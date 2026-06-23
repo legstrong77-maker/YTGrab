@@ -14,8 +14,47 @@ if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR);
 
 // ffmpeg path - explicit location for yt-dlp
 const FFMPEG_DIR = String.raw`C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin`;
+const FFMPEG = path.join(FFMPEG_DIR, "ffmpeg.exe");
+const FFPROBE = path.join(FFMPEG_DIR, "ffprobe.exe");
 
 app.use(express.static(path.join(__dirname, "public")));
+
+// ffprobe 取得影片長度（秒），給進度估算用
+function ffprobeDuration(file) {
+  return new Promise((resolve) => {
+    const pr = spawn(FFPROBE, [
+      "-v", "error", "-show_entries", "format=duration",
+      "-of", "default=nw=1:nk=1", file,
+    ]);
+    let o = "";
+    pr.stdout.on("data", (c) => (o += c.toString()));
+    pr.on("close", () => {
+      const d = parseFloat(o.trim());
+      resolve(isFinite(d) ? d : 0);
+    });
+    pr.on("error", () => resolve(0));
+  });
+}
+function parseFfmpegTime(line) {
+  const m = line.match(/time=(\d+):(\d+):(\d+\.?\d*)/);
+  if (!m) return null;
+  return +m[1] * 3600 + +m[2] * 60 + parseFloat(m[3]);
+}
+function runFfmpeg(args, duration, socket, onDone, fallbackArgs) {
+  const proc = spawn(FFMPEG, args);
+  proc.stderr.on("data", (c) => {
+    const t = parseFfmpegTime(c.toString());
+    if (t != null && duration > 0) {
+      socket.emit("tool-progress", { percent: Math.min(99, Math.round((t / duration) * 100)) });
+    }
+  });
+  proc.on("close", (code) => {
+    if (code === 0) return onDone();
+    if (fallbackArgs) return runFfmpeg(fallbackArgs, duration, socket, onDone);
+    socket.emit("tool-error", "處理失敗（ffmpeg 退出碼 " + code + "）");
+  });
+  proc.on("error", (e) => socket.emit("tool-error", "無法啟動 ffmpeg：" + e.message));
+}
 
 function getPlatform(url) {
   let host = "";
@@ -352,6 +391,7 @@ io.on("connection", (socket) => {
             ext,
             size,
             ts: Date.now(),
+            filepath,
           });
           socket.emit("done", {
             id,
@@ -372,6 +412,85 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
       proc.kill();
     });
+  });
+
+  // 影片工具箱：拿下載紀錄裡的影片做後製（轉檔/壓縮/GIF/縮圖）
+  socket.on("tool", async (opts) => {
+    const { sourceId, op, params } = opts || {};
+    const meta = downloadMeta[sourceId];
+    if (!meta || !fs.existsSync(meta.filepath)) {
+      socket.emit("tool-error", "找不到來源檔，請從下載紀錄重新選擇");
+      return;
+    }
+    const src = meta.filepath;
+    const baseTitle = meta.title || sourceId;
+    const newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const p = params || {};
+    const clampInt = (v, lo, hi, def) => {
+      const n = parseInt(v, 10);
+      return isNaN(n) ? def : Math.max(lo, Math.min(hi, n));
+    };
+
+    let outExt, args, fallbackArgs = null, label;
+    if (op === "convert") {
+      const fmt = ["mp4", "mkv", "mp3", "wav"].includes(p.format) ? p.format : "mp4";
+      outExt = fmt;
+      label = "轉檔 " + fmt.toUpperCase();
+      if (fmt === "mp3") args = ["-i", src, "-vn", "-c:a", "libmp3lame", "-q:a", "2"];
+      else if (fmt === "wav") args = ["-i", src, "-vn", "-c:a", "pcm_s16le"];
+      else args = ["-i", src, "-c", "copy"];
+    } else if (op === "compress") {
+      outExt = "mp4";
+      label = "壓縮";
+      const cq = { high: "23", medium: "28", low: "33" }[p.quality] || "28";
+      const vf = p.scale && p.scale !== "keep" ? ["-vf", "scale=-2:" + clampInt(p.scale, 144, 2160, 720)] : [];
+      args = ["-i", src, "-c:v", "h264_nvenc", "-cq", cq, ...vf, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"];
+      fallbackArgs = ["-y", "-i", src, "-c:v", "libx264", "-crf", cq, ...vf, "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"];
+    } else if (op === "gif") {
+      outExt = "gif";
+      label = "GIF";
+      const fps = clampInt(p.fps, 1, 30, 12);
+      const w = clampInt(p.width, 64, 1024, 400);
+      const ss = String(p.start || "0").trim() || "0";
+      const toArg = String(p.end || "").trim() ? ["-to", String(p.end).trim()] : [];
+      args = ["-ss", ss, ...toArg, "-i", src, "-vf",
+        `fps=${fps},scale=${w}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse`];
+    } else if (op === "thumb") {
+      outExt = "jpg";
+      label = "縮圖";
+      args = ["-ss", String(p.time || "0").trim() || "0", "-i", src, "-frames:v", "1", "-q:v", "2"];
+    } else {
+      socket.emit("tool-error", "未知操作");
+      return;
+    }
+
+    const outPath = path.join(DOWNLOAD_DIR, `${newId}.${outExt}`);
+    const fullArgs = ["-y", ...args, outPath];
+    if (fallbackArgs) fallbackArgs = [...fallbackArgs, outPath];
+
+    const duration = await ffprobeDuration(src);
+    runFfmpeg(
+      fullArgs,
+      duration,
+      socket,
+      () => {
+        if (!fs.existsSync(outPath)) {
+          socket.emit("tool-error", "處理完成但找不到輸出檔");
+          return;
+        }
+        const niceName = `${baseTitle} (${label}).${outExt}`;
+        downloadMeta[newId] = { filepath: outPath, title: `${baseTitle} (${label})` };
+        let size = 0;
+        try { size = fs.statSync(outPath).size; } catch {}
+        recordDownload({
+          id: newId, title: `${baseTitle} (${label})`, filename: niceName,
+          mode: outExt === "mp3" || outExt === "wav" ? "audio" : "video",
+          ext: "." + outExt, size, ts: Date.now(), filepath: outPath,
+        });
+        socket.emit("tool-done", { id: newId, filename: niceName, downloadUrl: `/api/file/${newId}` });
+      },
+      fallbackArgs
+    );
   });
 });
 

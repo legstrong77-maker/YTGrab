@@ -260,6 +260,17 @@ select.ts-input option{background:#12121e;color:var(--text)}
 #burnMode .mode-icon,#burnSrc .mode-icon{font-size:1.3rem}
 @media(max-width:560px){.tool-tab span{display:none}.tool-tab{padding:13px 8px}}
 
+/* ===== Toolbox ===== */
+.tb-ops{margin-bottom:6px;flex-wrap:wrap}
+.tb-params{margin-top:16px;padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:var(--radius-s)}
+.tb-plabel{display:block;font-size:.74rem;color:var(--text2);font-weight:600;margin-bottom:8px}
+.tb-plabel:not(:first-child){margin-top:14px}
+.tb-params .bd-seg-group{flex-wrap:wrap}
+.tb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tb-grid label{display:flex;flex-direction:column;gap:6px;font-size:.74rem;color:var(--text2);font-weight:600}
+.tb-grid .ts-input{font-family:var(--mono);text-align:center;padding:10px}
+@media(max-width:560px){.tb-grid{grid-template-columns:repeat(2,1fr)}}
+
 /* ===== Clip ===== */
 .clip-box{margin-top:18px;border:1px solid var(--card-border);border-radius:var(--radius-s);background:rgba(255,255,255,.02);overflow:hidden}
 .clip-summary{padding:12px 16px;cursor:pointer;font-size:.82rem;color:var(--text2);font-weight:600;list-style:none;transition:.2s}

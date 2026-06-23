@@ -9,6 +9,7 @@
     download: $("#view-download"),
     transcribe: $("#view-transcribe"),
     subtitle: $("#view-subtitle"),
+    toolbox: $("#view-toolbox"),
   };
   toolTabs.forEach((t) =>
     t.addEventListener("click", () => {
@@ -24,6 +25,8 @@
         window.loadDownloads();
       } else if (v === "subtitle" && window.loadBurnHistory) {
         window.loadBurnHistory();
+      } else if (v === "toolbox" && window.loadToolboxSources) {
+        window.loadToolboxSources();
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
     })
