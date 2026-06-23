@@ -1,3 +1,30 @@
+// 主題色切換（記住偏好）
+(() => {
+  const ACCENTS = {
+    red: ["#ff0844", "#ff4070", "255,8,68"],
+    purple: ["#a855f7", "#c084fc", "168,85,247"],
+    blue: ["#3b82f6", "#60a5fa", "59,130,246"],
+    green: ["#10b981", "#34d399", "16,185,129"],
+    orange: ["#f59e0b", "#fbbf24", "245,158,11"],
+  };
+  function apply(name) {
+    const a = ACCENTS[name] || ACCENTS.red;
+    const r = document.documentElement.style;
+    r.setProperty("--accent", a[0]);
+    r.setProperty("--accent2", a[1]);
+    r.setProperty("--accent-rgb", a[2]);
+    localStorage.setItem("ytgrab_accent", name);
+    document.querySelectorAll("#themeBar .swatch").forEach((s) =>
+      s.classList.toggle("active", s.dataset.accent === name)
+    );
+  }
+  const saved = localStorage.getItem("ytgrab_accent") || "red";
+  apply(saved);
+  document.querySelectorAll("#themeBar .swatch").forEach((s) =>
+    s.addEventListener("click", () => apply(s.dataset.accent))
+  );
+})();
+
 // 全域 Toast 通知（其他腳本可呼叫 window.toast）
 window.toast = (msg, type = "ok") => {
   const wrap = document.getElementById("toastWrap");
@@ -245,6 +272,7 @@ window.toast = (msg, type = "ok") => {
     showOnly("done");
     doneFilename.textContent = data.filename;
     doneDownloadLink.href = data.downloadUrl;
+    if (window.loadDownloads) window.loadDownloads();
   });
 
   socket.on("error", (msg) => {

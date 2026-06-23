@@ -84,6 +84,16 @@
         </button>
       </div>
 
+      <!-- Theme color swatches -->
+      <div class="theme-bar" id="themeBar">
+        <span class="theme-label">主題色</span>
+        <button class="swatch" data-accent="red" style="--sw:#ff0844" title="紅"></button>
+        <button class="swatch" data-accent="purple" style="--sw:#a855f7" title="紫"></button>
+        <button class="swatch" data-accent="blue" style="--sw:#3b82f6" title="藍"></button>
+        <button class="swatch" data-accent="green" style="--sw:#10b981" title="綠"></button>
+        <button class="swatch" data-accent="orange" style="--sw:#f59e0b" title="橘"></button>
+      </div>
+
       <!-- ============ DOWNLOAD VIEW ============ -->
       <div id="view-download" class="tool-view active">
 
@@ -311,6 +321,25 @@
           </button>
         </div>
       </section>
+
+      <!-- Download History -->
+      <details class="card glass hist-card" id="dlHistCard">
+        <summary class="bd-summary">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          <span class="bd-summary-title">下載紀錄</span>
+          <span class="bd-summary-hint" id="dlHistCount">點此展開下載過的檔案</span>
+          <svg class="bd-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="bd-body">
+          <div class="hist-toolbar">
+            <input type="text" id="dlHistSearch" class="ts-input hist-search" placeholder="🔍 搜尋檔名…" spellcheck="false" />
+            <button type="button" class="btn btn-ghost ts-mini" id="dlHistRefresh">↻ 重新整理</button>
+            <button type="button" class="btn btn-ghost ts-mini" id="dlHistClear">🗑 清空</button>
+          </div>
+          <div id="dlHistList" class="ts-batch-list hist-list"></div>
+          <p class="hist-empty hidden" id="dlHistEmpty">還沒有下載紀錄。下載完成的影片會出現在這裡。</p>
+        </div>
+      </details>
 
       <!-- How It Works Section -->
       <section class="how-it-works" id="howItWorks">
@@ -567,8 +596,9 @@
           </summary>
           <div class="bd-body">
             <div class="hist-toolbar">
-              <input type="text" id="tsHistSearch" class="ts-input hist-search" placeholder="🔍 搜尋標題…" spellcheck="false" />
+              <input type="text" id="tsHistSearch" class="ts-input hist-search" placeholder="🔍 搜尋標題或內文…" spellcheck="false" />
               <button type="button" class="btn btn-ghost ts-mini" id="tsHistRefresh">↻ 重新整理</button>
+              <button type="button" class="btn btn-ghost ts-mini" id="tsHistClear">🗑 清空</button>
             </div>
             <div id="tsHistList" class="ts-batch-list hist-list"></div>
             <p class="hist-empty hidden" id="tsHistEmpty">目前還沒有歷史紀錄。完成第一個逐字稿後就會出現在這裡。</p>
@@ -621,6 +651,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
     <script src="batch-download.js"></script>
+    <script src="download-history.js"></script>
     <script src="transcribe.js"></script>
   </body>
 </html>

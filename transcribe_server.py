@@ -490,6 +490,36 @@ def history():
     return out
 
 
+@app.get("/api/search")
+def search(q: str = ""):
+    """在歷史逐字稿中做全文搜尋（標題 + 內文），回傳含命中片段。"""
+    q = (q or "").strip()
+    if not q:
+        return []
+    ql = q.lower()
+    out = []
+    for r in load_history():
+        jid = r.get("id", "")
+        if not valid_id(jid):
+            continue
+        p = WORK_DIR / f"{jid}.txt"
+        if not p.exists():
+            continue
+        title = r.get("title", "")
+        text = p.read_text(encoding="utf-8", errors="replace")
+        idx = text.lower().find(ql)
+        in_title = ql in title.lower()
+        if idx < 0 and not in_title:
+            continue
+        snippet = ""
+        if idx >= 0:
+            s = max(0, idx - 30)
+            e = min(len(text), idx + len(q) + 50)
+            snippet = ("…" if s > 0 else "") + text[s:e].replace("\n", " ") + ("…" if e < len(text) else "")
+        out.append({**r, "snippet": snippet, "in_title": in_title})
+    return out
+
+
 @app.get("/api/result/{job_id}")
 def result(job_id: str):
     """從磁碟讀回某次逐字稿的全文與字幕（供歷史重看，重開機後也行）。"""
@@ -505,6 +535,25 @@ def result(job_id: str):
         "text": txt.read_text(encoding="utf-8", errors="replace"),
         "srt": srt.read_text(encoding="utf-8", errors="replace") if srt.exists() else "",
     }
+
+
+@app.delete("/api/history")
+def clear_history():
+    """清空所有歷史逐字稿（檔案 + 紀錄）。"""
+    with HISTORY_LOCK:
+        for r in load_history():
+            jid = r.get("id", "")
+            if valid_id(jid):
+                for p in WORK_DIR.glob(f"{jid}.*"):
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+        try:
+            HISTORY_FILE.write_text("[]", encoding="utf-8")
+        except Exception:
+            pass
+    return {"ok": True}
 
 
 @app.delete("/api/result/{job_id}")

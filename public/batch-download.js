@@ -76,6 +76,7 @@
         setBar(row, 100);
         setState(row, "done");
         addDoneLink(row, data);
+        if (window.loadDownloads) window.loadDownloads();
         resolve();
       };
       const onErr = (msg) => {

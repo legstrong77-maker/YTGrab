@@ -16,6 +16,8 @@
       if (v === "transcribe") {
         checkHealth();
         loadHistory();
+      } else if (v === "download" && window.loadDownloads) {
+        window.loadDownloads();
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
     })
@@ -380,7 +382,7 @@
     items.forEach((r) => histList.appendChild(makeHistRow(r)));
   }
 
-  function makeHistRow(r) {
+  function makeHistRow(r, q) {
     const row = document.createElement("div");
     row.className = "ts-item hist-item";
     const badge =
@@ -449,7 +451,24 @@
         window.toast("刪除失敗", "err");
       }
     });
+    if (r.snippet) {
+      const sn = document.createElement("div");
+      sn.className = "hist-snippet";
+      sn.innerHTML = highlight(r.snippet, q);
+      row.querySelector(".ts-item-text").before(sn);
+    }
     return row;
+  }
+
+  function esc(s) {
+    return (s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+  function highlight(text, q) {
+    const e = esc(text);
+    if (!q) return e;
+    const i = e.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return e;
+    return e.slice(0, i) + "<mark>" + e.slice(i, i + q.length) + "</mark>" + e.slice(i + q.length);
   }
 
   function relTime(ts) {
@@ -461,10 +480,50 @@
     return Math.floor(s / 86400) + " 天前";
   }
 
-  histSearch.addEventListener("input", renderHistory);
+  let searchTimer = null;
+  histSearch.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(doHistSearch, 280);
+  });
+  async function doHistSearch() {
+    const q = histSearch.value.trim();
+    if (!q) {
+      renderHistory();
+      return;
+    }
+    let res = [];
+    try {
+      const r = await fetch(`${API}/api/search?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+      res = r.ok ? await r.json() : [];
+    } catch {
+      res = [];
+    }
+    histCount.textContent = `搜尋到 ${res.length} 筆`;
+    histEmpty.classList.add("hidden");
+    histList.innerHTML = "";
+    if (!res.length) {
+      histList.innerHTML = '<p class="hist-empty">找不到符合「' + esc(q) + '」的逐字稿。</p>';
+      return;
+    }
+    res.forEach((r) => histList.appendChild(makeHistRow(r, q)));
+  }
   $("#tsHistRefresh").addEventListener("click", () => {
+    histSearch.value = "";
     loadHistory();
     window.toast("已重新整理");
+  });
+  $("#tsHistClear").addEventListener("click", async () => {
+    if (!histData.length) return;
+    if (!confirm("清空所有逐字稿歷史紀錄？（會一併刪除這些檔案，無法復原）")) return;
+    try {
+      await fetch(`${API}/api/history`, { method: "DELETE" });
+      histData = [];
+      histSearch.value = "";
+      renderHistory();
+      window.toast("已清空歷史紀錄");
+    } catch {
+      window.toast("清空失敗", "err");
+    }
   });
 
   // ---- 貼上剪貼簿 ----
