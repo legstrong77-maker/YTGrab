@@ -122,6 +122,37 @@
         </div>
       </section>
 
+      <!-- Batch Download (collapsible) -->
+      <details class="card glass bd-card" id="bdCard">
+        <summary class="bd-summary">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="bd-summary-title">批次下載多個影片</span>
+          <span class="bd-summary-hint">貼多個網址，套用同一格式畫質，依序下載</span>
+          <svg class="bd-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="bd-body">
+          <textarea id="bdUrls" class="ts-input ts-textarea" rows="3" placeholder="一行一個網址，可一次貼多個…&#10;https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..."></textarea>
+          <button type="button" class="ts-paste" id="bdPaste">📋 貼上剪貼簿</button>
+          <div class="bd-controls">
+            <div class="bd-seg-group" id="bdMode">
+              <button class="bd-seg active" data-mode="video">🎬 影片 MP4</button>
+              <button class="bd-seg" data-mode="audio">🎵 音訊 MP3</button>
+            </div>
+            <div class="bd-seg-group" id="bdQuality">
+              <button class="bd-seg active" data-q="">最佳</button>
+              <button class="bd-seg" data-q="1080">1080p</button>
+              <button class="bd-seg" data-q="720">720p</button>
+              <button class="bd-seg" data-q="480">480p</button>
+            </div>
+          </div>
+          <button class="btn btn-download btn-glow" id="bdGo">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>開始批次下載</span>
+          </button>
+          <div id="bdList" class="ts-batch-list bd-list"></div>
+        </div>
+      </details>
+
       <!-- Loading -->
       <section class="card glass loading-card hidden" id="loadingSection">
         <div class="loader">
@@ -477,7 +508,10 @@
 
           <div id="tsPaneUrl" class="ts-pane">
             <textarea id="tsUrl" class="ts-input ts-textarea" rows="3" placeholder="一行一個網址，可一次貼多個（YouTube / Facebook / Instagram）…&#10;https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..." spellcheck="false"></textarea>
-            <p class="ts-hint">會由上到下「依序」逐字稿，全部完成後可一次打包下載。</p>
+            <div class="ts-hint-row">
+              <button type="button" class="ts-paste" id="tsPaste">📋 貼上剪貼簿</button>
+              <span class="ts-hint">會由上到下「依序」逐字稿，全部完成後可一次打包下載。</span>
+            </div>
           </div>
 
           <div id="tsPaneFile" class="ts-pane hidden">
@@ -488,6 +522,12 @@
             </div>
             <input type="file" id="tsFile" class="hidden" accept="audio/*,video/*" multiple />
           </div>
+
+          <label class="ts-toggle" id="tsPreferWrap">
+            <input type="checkbox" id="tsPreferSubs" checked />
+            <span class="ts-toggle-track"><span class="ts-toggle-thumb"></span></span>
+            <span class="ts-toggle-label"><strong>⚡ 優先抓現成字幕</strong>　有人工/自動字幕的影片秒出、免跑 GPU；沒有才自動用 AI 辨識</span>
+          </label>
 
           <button class="btn btn-download btn-glow" id="tsGo">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -509,6 +549,7 @@
           <div class="ts-result-head">
             <h3 id="tsResTitle">逐字稿結果</h3>
             <div class="ts-actions">
+              <button class="btn btn-ghost ts-mini" id="tsCopyAll">📋 複製全部</button>
               <button class="btn btn-ghost ts-mini" id="tsDlAllTxt">⬇ 全部 .txt (ZIP)</button>
               <button class="btn btn-ghost ts-mini" id="tsDlAllSrt">⬇ 全部 .srt (ZIP)</button>
             </div>
@@ -559,6 +600,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
+    <script src="batch-download.js"></script>
     <script src="transcribe.js"></script>
   </body>
 </html>

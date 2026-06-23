@@ -150,6 +150,7 @@
   function submitJob(item) {
     const fd = new FormData();
     fd.append("mode", item.kind);
+    fd.append("prefer_subs", $("#tsPreferSubs").checked ? "1" : "0");
     if (item.kind === "url") fd.append("url", item.value);
     else fd.append("file", item.value);
     return fetch(API + "/api/job", { method: "POST", body: fd }).then(async (r) => {
@@ -229,6 +230,14 @@
     const title = j.title ? j.title : "";
     if (title) row.querySelector(".ts-item-title").textContent =
       row.querySelector(".ts-item-title").textContent.replace(/\..*$/, "") + ". " + title;
+    // 來源標記：現成字幕 / AI 辨識
+    const badge = row.querySelector(".ts-item-status");
+    if (j.source === "subs") {
+      badge.classList.add("badge-subs");
+      badge.textContent = "⚡ 現成字幕";
+    } else {
+      badge.textContent = "🎙 AI 辨識";
+    }
     setRowStatusText(row, "");
     const ta = row.querySelector(".ts-item-text");
     ta.value = j.text || "(沒有辨識到內容)";
@@ -270,6 +279,23 @@
 
   dlAllTxt.addEventListener("click", () => downloadZip("txt"));
   dlAllSrt.addEventListener("click", () => downloadZip("srt"));
+
+  $("#tsCopyAll").addEventListener("click", () => {
+    const parts = [];
+    batchList.querySelectorAll(".ts-item").forEach((row) => {
+      const ta = row.querySelector(".ts-item-text");
+      if (ta && ta.value.trim()) {
+        const title = row.querySelector(".ts-item-title").textContent.trim();
+        parts.push(`【${title}】\n${ta.value.trim()}`);
+      }
+    });
+    if (!parts.length) return showErr("目前沒有可複製的逐字稿。");
+    navigator.clipboard.writeText(parts.join("\n\n──────────\n\n"));
+    const b = $("#tsCopyAll");
+    const t = b.textContent;
+    b.textContent = "✓ 已複製全部";
+    setTimeout(() => (b.textContent = t), 1500);
+  });
 
   async function downloadZip(fmt) {
     if (!doneJobIds.length) return;
@@ -321,6 +347,19 @@
       return "無法連線逐字稿伺服器，請確認已執行 啟動逐字稿.bat 並等待模型載入完成。";
     return msg || "發生未知錯誤";
   }
+
+  // ---- 貼上剪貼簿 ----
+  $("#tsPaste").addEventListener("click", async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (!t) return;
+      const box = $("#tsUrl");
+      box.value = box.value && !box.value.endsWith("\n") ? box.value + "\n" + t : box.value + t;
+      box.focus();
+    } catch {
+      showErr("無法讀取剪貼簿，請直接用 Ctrl+V 貼上。");
+    }
+  });
 
   updateBatchDownloadButtons();
 })();

@@ -167,6 +167,82 @@ def fmt_ts(seconds: float) -> str:
 
 
 # ---------------------------------------------------------------------------
+# YouTube / 平台「現成字幕」快速通道（有字幕就秒出，免下載音訊、免跑 GPU）
+# ---------------------------------------------------------------------------
+SUB_LANG_PREF = ["zh-hant", "zh-tw", "zh-hk", "zh", "zh-hans", "zh-cn", "en"]
+
+
+def get_title(url: str) -> str:
+    r = run([sys.executable, "-m", "yt_dlp", "--no-playlist",
+             "--skip-download", "--print", "%(title)s", url])
+    if r.returncode == 0 and r.stdout.strip():
+        return r.stdout.strip().splitlines()[0]
+    return "video"
+
+
+def _subs_to_text(raw: str) -> str:
+    """把 srt/vtt 內文抽成純逐字稿，並清掉自動字幕常見的滾動重複。"""
+    out = []
+    for line in raw.splitlines():
+        s = line.strip()
+        if not s or s.upper().startswith("WEBVTT"):
+            continue
+        if s.isdigit() or "-->" in s:
+            continue
+        s = re.sub(r"<[^>]+>", "", s)          # 去掉 <00:00:00.000>、<c> 等標籤
+        s = re.sub(r"\{\\[^}]*\}", "", s)       # 去掉樣式標籤
+        s = s.strip()
+        if not s:
+            continue
+        # 自動字幕常見：上一行是這一行的前綴（滾動式），保留較長的那行
+        if out and (s.startswith(out[-1]) or out[-1].startswith(s)):
+            out[-1] = s if len(s) >= len(out[-1]) else out[-1]
+            continue
+        if out and out[-1] == s:                # 連續完全重複
+            continue
+        out.append(s)
+    return "\n".join(out).strip()
+
+
+def _find_sub(base: Path):
+    cands = list(base.parent.glob(base.name + ".*.srt"))
+    if not cands:
+        return None
+
+    def score(p):
+        low = p.name.lower()
+        for i, lang in enumerate(SUB_LANG_PREF):
+            if f".{lang}." in low:
+                return i
+        return 999
+    cands.sort(key=score)
+    return cands[0]
+
+
+def fetch_existing_subs(url: str, base: Path):
+    """嘗試抓現成字幕：先人工字幕（乾淨），再退回自動字幕。回傳 (text, srt) 或 None。"""
+    langs = "zh-Hant,zh-TW,zh-HK,zh,zh-Hans,zh-CN,en.*,en"
+    common = [sys.executable, "-m", "yt_dlp", "--no-playlist",
+              "--ffmpeg-location", FFMPEG_DIR, "--skip-download",
+              "--sub-langs", langs, "--convert-subs", "srt", "-o", str(base)]
+    # 第一輪：只抓人工字幕
+    run(common + ["--write-subs", url])
+    pick = _find_sub(base)
+    # 第二輪：沒有人工字幕才抓自動字幕
+    if pick is None:
+        run(common + ["--write-auto-subs", url])
+        pick = _find_sub(base)
+    if pick is None:
+        return None
+    srt_raw = pick.read_text(encoding="utf-8", errors="replace")
+    text = to_traditional(_subs_to_text(srt_raw))
+    srt = to_traditional(srt_raw)
+    if not text.strip():
+        return None
+    return text, srt
+
+
+# ---------------------------------------------------------------------------
 # 工作佇列（單一背景執行緒處理，輪詢取進度）
 # ---------------------------------------------------------------------------
 JOBS: dict[str, dict] = {}
@@ -176,6 +252,23 @@ def process_job(job_id: str):
     job = JOBS[job_id]
     base = WORK_DIR / job_id
     try:
+        # 0) 現成字幕快速通道：有字幕就秒出，免下載音訊、免跑模型
+        if job["mode"] == "url" and job.get("prefer_subs"):
+            job.update(stage="嘗試取得現成字幕…", progress=0.0)
+            job["title"] = get_title(job["url"])
+            try:
+                subs = fetch_existing_subs(job["url"], base)
+            except Exception:
+                subs = None
+            if subs:
+                text, srt = subs
+                (base.parent / f"{job_id}.txt").write_text(text, encoding="utf-8")
+                (base.parent / f"{job_id}.srt").write_text(srt, encoding="utf-8")
+                job.update(stage="完成（現成字幕）", progress=1.0, state="done",
+                           text=text, srt=srt, source="subs")
+                return
+            job.update(stage="無現成字幕，改用 AI 辨識…", progress=0.0)
+
         # 1) 取得音訊來源
         if job["mode"] == "url":
             job.update(stage="下載影片音訊中…", progress=0.0)
@@ -225,7 +318,7 @@ def process_job(job_id: str):
         (base.parent / f"{job_id}.srt").write_text(srt, encoding="utf-8")
 
         job.update(stage="完成", progress=1.0, state="done",
-                   text=full_text, srt=srt)
+                   text=full_text, srt=srt, source="asr")
     except Exception as e:
         job.update(state="error", error=str(e), stage="發生錯誤")
 
@@ -254,12 +347,14 @@ def index():
 async def create_job(
     mode: str = Form(...),
     url: str = Form(""),
+    prefer_subs: str = Form("0"),
     file: UploadFile | None = File(None),
 ):
     job_id = uuid.uuid4().hex[:12]
     job = {"id": job_id, "mode": mode, "url": url, "state": "running",
            "stage": "排隊中…", "progress": 0.0, "title": "",
-           "text": "", "srt": "", "error": ""}
+           "text": "", "srt": "", "error": "", "source": "",
+           "prefer_subs": prefer_subs not in ("0", "", "false", "False")}
 
     if mode == "file":
         if file is None:
@@ -288,7 +383,7 @@ def status(job_id: str):
         raise HTTPException(404, "找不到工作")
     return {k: job.get(k) for k in
             ("id", "state", "stage", "progress", "title", "text", "srt",
-             "error", "duration")}
+             "error", "duration", "source")}
 
 
 @app.get("/api/download/{job_id}/{fmt}")
