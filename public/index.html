@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>YTGrab — YouTube 影片下載器</title>
-    <meta name="description" content="高品質 YouTube 影片與 MP3 音檔下載工具" />
+    <title>YTGrab — 多平台影片下載器</title>
+    <meta name="description" content="支援 YouTube、Facebook Reels、Instagram Reels 的本機影片下載工具" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,12 +14,25 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!-- Password Overlay -->
+    <div class="auth-overlay" id="authOverlay">
+      <div class="card glass auth-card">
+        <div class="auth-icon">🔒</div>
+        <h2>專屬防盜機制</h2>
+        <p>請問，你知道作者是誰嗎？</p>
+        <div class="input-wrapper" style="margin-top: 20px;">
+          <input type="text" id="authInput" placeholder="請輸入答案..." autocomplete="off">
+        </div>
+        <p id="authError" class="auth-error hidden">答案錯誤，請再試一次！</p>
+        <button id="authBtn" class="btn btn-primary btn-glow" style="width: 100%; margin-top: 20px;">
+          <span>驗證</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Animated background -->
     <div class="bg-noise"></div>
     <div class="bg-gradient"></div>
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
-    <div class="bg-orb orb-3"></div>
 
     <main class="container">
       <!-- Hero Header -->
@@ -43,21 +56,36 @@
           </div>
           <div>
             <h1>YTGrab</h1>
-            <p class="hero-tagline">YouTube 影片 & 音訊下載器</p>
+            <p class="hero-tagline">影音下載 · 轉檔 · AI 逐字稿　一站式工作台</p>
           </div>
         </div>
         <p class="hero-desc">
-          貼上影片連結，選擇格式與畫質，即刻下載到你的電腦
+          下載多平台影片，或把影片 / 聲音轉成繁體中文逐字稿 — 全程在你的電腦本機完成
         </p>
 
         <!-- Feature pills -->
         <div class="feature-pills">
-          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>支援 4K 畫質</span>
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>多平台下載</span>
           <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>MP3 音訊擷取</span>
-          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>即時進度</span>
-          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>零廣告零追蹤</span>
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>AI 繁中逐字稿</span>
+          <span class="pill"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm3.7 5.7-4 4a1 1 0 0 1-1.4 0l-2-2a1 1 0 0 1 1.4-1.4L7 8.58l3.3-3.3a1 1 0 0 1 1.4 1.42z"/></svg>本機運算</span>
         </div>
       </header>
+
+      <!-- Tool Switcher -->
+      <div class="tool-tabs" id="toolTabs">
+        <button class="tool-tab active" data-view="download">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>影片下載</span>
+        </button>
+        <button class="tool-tab" data-view="transcribe">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <span>影音轉逐字稿</span>
+        </button>
+      </div>
+
+      <!-- ============ DOWNLOAD VIEW ============ -->
+      <div id="view-download" class="tool-view active">
 
       <!-- URL Input Card -->
       <section class="card glass input-card" id="inputSection">
@@ -71,7 +99,7 @@
             <input
               type="text"
               id="urlInput"
-              placeholder="貼上 YouTube 影片網址，例如 https://youtube.com/watch?v=..."
+              placeholder="貼上影片網址"
               autocomplete="off"
               spellcheck="false"
             />
@@ -88,7 +116,10 @@
             <span>解析影片</span>
           </button>
         </div>
-        <p class="input-hint">支援 youtube.com 與 youtu.be 連結格式</p>
+        <div class="platform-status" id="platformStatus">
+          <span class="platform-dot"></span>
+          <span>支援 YouTube、Facebook Reels、Instagram Reels / 單篇影片。Threads 目前暫不支援。</span>
+        </div>
       </section>
 
       <!-- Loading -->
@@ -119,6 +150,10 @@
           <div class="video-meta">
             <h2 id="videoTitle" class="video-title"></h2>
             <div class="meta-chips">
+              <span class="meta-chip platform-chip" id="platformChip">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>
+                <span></span>
+              </span>
               <span class="meta-chip" id="uploader">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <span></span>
@@ -261,10 +296,10 @@
             <div class="flow-number">1</div>
             <div class="flow-content">
               <h4>解析影片資訊</h4>
-              <p>當你貼上 YouTube 網址後，後端使用 <code>yt-dlp</code> 的 <code>--dump-json</code> 指令向 YouTube 發出請求，解析出影片標題、縮圖、可用畫質、時長等完整 metadata。</p>
+              <p>當你貼上支援平台的網址後，後端使用 <code>yt-dlp</code> 的 <code>--dump-json</code> 指令解析影片標題、縮圖、可用畫質、時長等完整 metadata。</p>
               <div class="code-block">
                 <span class="code-lang">Shell</span>
-                <code>yt-dlp --dump-json --no-playlist "https://youtube.com/watch?v=..."</code>
+                <code>yt-dlp --dump-json --no-playlist "https://www.instagram.com/reel/..."</code>
               </div>
             </div>
           </div>
@@ -277,10 +312,10 @@
             <div class="flow-number">2</div>
             <div class="flow-content">
               <h4>選擇格式與畫質</h4>
-              <p>YouTube 對每部影片儲存了多個串流：影像軌（不同解析度）與音訊軌是<strong>分開儲存</strong>的。你選擇的畫質會對應到一個影像格式 ID，系統會自動搭配最佳音訊軌。</p>
+              <p>平台通常會提供多個串流：影像軌（不同解析度）與音訊軌可能是<strong>分開儲存</strong>的。你選擇的畫質會對應到一個影像格式，系統會自動搭配最佳音訊軌。</p>
               <div class="tech-note">
                 <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.5 3h1v1h-1V4zm.5 2.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V7a.5.5 0 0 1 .5-.5z"/></svg>
-                <span>YouTube 的 1080p 以上影片，影像與音訊永遠是分開的 adaptive stream</span>
+                <span>Facebook 與 Instagram 若遇到私人或登入限定內容，可能需要瀏覽器 cookies 才能解析</span>
               </div>
             </div>
           </div>
@@ -398,21 +433,131 @@
             </div>
             <div class="arch-node arch-yt">
               <div class="arch-node-icon">▶️</div>
-              <span>YouTube</span>
-              <small>影片伺服器</small>
+              <span>影音平台</span>
+              <small>YouTube / FB / IG</small>
             </div>
           </div>
         </div>
       </section>
+      </div><!-- /view-download -->
+
+      <!-- ============ TRANSCRIBE VIEW ============ -->
+      <div id="view-transcribe" class="tool-view">
+
+        <!-- Server status -->
+        <section class="card glass ts-status-card" id="tsStatus">
+          <span class="ts-status-dot"></span>
+          <span class="ts-status-text" id="tsStatusText">正在連線逐字稿伺服器…</span>
+        </section>
+
+        <!-- Input -->
+        <section class="card glass">
+          <div class="card-glow"></div>
+          <div class="section-label">音訊來源</div>
+          <div class="mode-selector ts-source">
+            <button class="mode-btn active" data-src="url" id="tsSrcUrl">
+              <div class="mode-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <div class="mode-label">
+                <span class="mode-name">貼上網址</span>
+                <span class="mode-desc">YouTube / FB / IG</span>
+              </div>
+            </button>
+            <button class="mode-btn" data-src="file" id="tsSrcFile">
+              <div class="mode-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="mode-label">
+                <span class="mode-name">上傳檔案</span>
+                <span class="mode-desc">本機 mp4 / mp3…</span>
+              </div>
+            </button>
+          </div>
+
+          <div id="tsPaneUrl" class="ts-pane">
+            <input type="text" id="tsUrl" class="ts-input" placeholder="貼上 YouTube / Facebook / Instagram 影片網址…" autocomplete="off" spellcheck="false" />
+          </div>
+
+          <div id="tsPaneFile" class="ts-pane hidden">
+            <div class="file-drop" id="tsDrop">
+              點此選擇，或將影片 / 音訊檔拖曳到這裡
+              <small>支援 mp4 / mp3 / wav / m4a / mov…</small>
+              <div class="ts-filename" id="tsFileName"></div>
+            </div>
+            <input type="file" id="tsFile" class="hidden" accept="audio/*,video/*" />
+          </div>
+
+          <button class="btn btn-download btn-glow" id="tsGo">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>開始轉逐字稿</span>
+          </button>
+
+          <div class="ts-progress hidden" id="tsProg">
+            <div class="progress-bar-wrap">
+              <div class="progress-bar" id="tsBar"><div class="progress-bar-shimmer"></div></div>
+            </div>
+            <p class="ts-stage" id="tsStage">準備中…</p>
+          </div>
+          <p class="ts-err hidden" id="tsErr"></p>
+        </section>
+
+        <!-- Result -->
+        <section class="card glass hidden" id="tsResultCard">
+          <div class="ts-result-head">
+            <h3 id="tsResTitle">逐字稿</h3>
+            <div class="ts-actions">
+              <button class="btn btn-ghost ts-mini" id="tsCopy">📋 複製</button>
+              <button class="btn btn-ghost ts-mini" id="tsDlTxt">⬇ .txt</button>
+              <button class="btn btn-ghost ts-mini" id="tsDlSrt">⬇ .srt 字幕</button>
+            </div>
+          </div>
+          <textarea id="tsOut" class="ts-out" readonly></textarea>
+        </section>
+
+        <!-- How it works (transcribe) -->
+        <section class="how-it-works">
+          <h2 class="section-heading">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            逐字稿運作原理
+          </h2>
+          <p class="section-intro">
+            使用 <code>MediaTek-Research/Breeze-ASR-25</code>（Whisper 微調，專為台灣中文與中英夾雜優化），完全在你的 GPU 本機運算、免費、不上傳雲端。
+          </p>
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <div class="flow-number">1</div>
+              <div class="flow-content"><h4>取得音訊</h4><p>貼網址時用 <code>yt-dlp</code> 抓最佳音軌；或直接使用你上傳的本機檔案。</p></div>
+            </div>
+            <div class="flow-connector"><svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg></div>
+            <div class="flow-step">
+              <div class="flow-number">2</div>
+              <div class="flow-content"><h4>轉檔分段</h4><p><code>FFmpeg</code> 轉成 16kHz 單聲道 wav，再切成每 28 秒一段送進模型。</p></div>
+            </div>
+            <div class="flow-connector"><svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg></div>
+            <div class="flow-step">
+              <div class="flow-number">3</div>
+              <div class="flow-content"><h4>辨識 + 繁體化</h4><p>逐段辨識並回報進度，最後用 <code>OpenCC</code> 確保輸出為繁體中文（台灣慣用詞）。</p></div>
+            </div>
+            <div class="flow-connector"><svg viewBox="0 0 2 40" width="2" height="40"><line x1="1" y1="0" x2="1" y2="40" stroke="rgba(255,8,68,0.3)" stroke-width="2" stroke-dasharray="4 4"/></svg></div>
+            <div class="flow-step">
+              <div class="flow-number">4</div>
+              <div class="flow-content"><h4>輸出</h4><p>產生純文字逐字稿，可一鍵複製，或下載 <code>.txt</code> 與 <code>.srt</code> 字幕檔。</p></div>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /view-transcribe -->
 
       <!-- Footer -->
       <footer class="footer">
         <p>Built with <span class="heart">♥</span> using yt-dlp + FFmpeg + Node.js</p>
-        <p class="footer-sub">所有操作皆於本機執行，您的資料不會上傳至任何伺服器</p>
+        <p class="footer-sub">所有操作皆於本機執行；請只下載自己擁有、公開可用或已獲授權的內容</p>
       </footer>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
+    <script src="transcribe.js"></script>
   </body>
 </html>

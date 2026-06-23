@@ -1,0 +1,11 @@
+# 逐字稿工具所需 Python 套件
+# 注意：PyTorch 要另外裝（RTX 50 系列需 CUDA 12.8 版），見 安裝逐字稿.bat / TRANSCRIBE_README.md
+transformers>=4.44
+accelerate
+soundfile
+opencc-python-reimplemented
+fastapi
+uvicorn[standard]
+python-multipart
+numpy
+# yt-dlp 你已經裝過了；若沒有：pip install yt-dlp

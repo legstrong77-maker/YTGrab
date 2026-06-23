@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>逐字稿工具 — 繁體中文影音轉文字</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --card: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.12);
+    --txt: #e8ecf4;
+    --muted: #93a0b8;
+    --accent: #6ea8fe;
+    --accent2: #9b8cff;
+    --ok: #4ade80;
+    --err: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--txt);
+    font-family: "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #1b2540 0, transparent 60%),
+      radial-gradient(1000px 500px at 110% 10%, #2a1b40 0, transparent 55%),
+      var(--bg);
+    padding: 40px 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: .5px; }
+  h1 .grad {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+  .sub a { color: var(--accent); text-decoration: none; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 22px; backdrop-filter: blur(14px);
+    box-shadow: 0 10px 40px rgba(0,0,0,.35); margin-bottom: 18px;
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    flex: 1; padding: 10px; text-align: center; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: transparent; color: var(--muted); font-size: 15px;
+    transition: .15s;
+  }
+  .tab.active { background: rgba(110,168,254,.15); color: var(--txt); border-color: var(--accent); }
+  .pane { display: none; }
+  .pane.active { display: block; }
+  input[type=text], textarea {
+    width: 100%; padding: 13px 15px; border-radius: 12px;
+    border: 1px solid var(--border); background: rgba(0,0,0,.25);
+    color: var(--txt); font-size: 15px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  .file-drop {
+    border: 1.5px dashed var(--border); border-radius: 12px; padding: 26px;
+    text-align: center; color: var(--muted); cursor: pointer; transition: .15s;
+  }
+  .file-drop:hover, .file-drop.over { border-color: var(--accent); color: var(--txt); background: rgba(110,168,254,.07); }
+  .file-name { margin-top: 10px; color: var(--accent); font-size: 14px; word-break: break-all; }
+  .btn {
+    margin-top: 16px; width: 100%; padding: 14px; border: none; cursor: pointer;
+    border-radius: 12px; font-size: 16px; font-weight: 600; color: #fff;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: .15s;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:not(:disabled):hover { filter: brightness(1.08); }
+  .progress-wrap { display: none; margin-top: 6px; }
+  .bar { height: 10px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
+  .stage { margin-top: 10px; font-size: 14px; color: var(--muted); }
+  .result-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .result-head .title { font-size: 16px; font-weight: 600; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mini {
+    padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 13px;
+    border: 1px solid var(--border); background: rgba(255,255,255,.05); color: var(--txt);
+  }
+  .mini:hover { border-color: var(--accent); }
+  #out { min-height: 280px; resize: vertical; line-height: 1.7; white-space: pre-wrap; }
+  .hidden { display: none; }
+  .err { color: var(--err); margin-top: 12px; font-size: 14px; }
+  .badge { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎙️ <span class="grad">逐字稿工具</span></h1>
+  <p class="sub">影片 / 聲音 → 繁體中文逐字稿　·　本機運算、免費、不上傳雲端　·　模型：Breeze ASR 25　·
+    <a href="http://localhost:3000" target="_blank">回 YTGrab 下載器 ↗</a></p>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" data-tab="url">🔗 貼上網址</button>
+      <button class="tab" data-tab="file">📁 上傳檔案</button>
+    </div>
+
+    <div class="pane active" id="pane-url">
+      <input type="text" id="url" placeholder="貼上 YouTube / Facebook / Instagram 影片網址…" />
+    </div>
+
+    <div class="pane" id="pane-file">
+      <div class="file-drop" id="drop">
+        點此選擇，或拖曳影片 / 音訊檔到這裡<br>
+        <span class="badge">支援 mp4 / mp3 / wav / m4a / mov…</span>
+        <div class="file-name" id="fileName"></div>
+      </div>
+      <input type="file" id="file" class="hidden" accept="audio/*,video/*" />
+    </div>
+
+    <button class="btn" id="go">開始轉逐字稿</button>
+
+    <div class="progress-wrap" id="prog">
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="stage" id="stage">準備中…</div>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card hidden" id="resultCard">
+    <div class="result-head">
+      <span class="title" id="resTitle">逐字稿</span>
+      <div class="actions">
+        <button class="mini" id="copyBtn">📋 複製</button>
+        <button class="mini" id="dlTxt">⬇ 下載 .txt</button>
+        <button class="mini" id="dlSrt">⬇ 下載 .srt 字幕</button>
+      </div>
+    </div>
+    <textarea id="out" readonly></textarea>
+  </div>
+</div>
+
+<script>
+  let currentTab = "url";
+  let selectedFile = null;
+  let jobId = null;
+  let poll = null;
+
+  document.querySelectorAll(".tab").forEach(t => {
+    t.onclick = () => {
+      currentTab = t.dataset.tab;
+      document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+      document.querySelectorAll(".pane").forEach(p =>
+        p.classList.toggle("active", p.id === "pane-" + currentTab));
+    };
+  });
+
+  const drop = document.getElementById("drop");
+  const fileInput = document.getElementById("file");
+  const fileName = document.getElementById("fileName");
+  drop.onclick = () => fileInput.click();
+  fileInput.onchange = () => setFile(fileInput.files[0]);
+  ["dragover", "dragenter"].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.classList.add("over");
+  }));
+  ["dragleave", "drop"].forEach(e => drop.addEventListener(e, ev => {
+    ev.preventDefault(); drop.classList.remove("over");
+  }));
+  drop.addEventListener("drop", ev => setFile(ev.dataTransfer.files[0]));
+  function setFile(f) {
+    if (!f) return;
+    selectedFile = f;
+    fileName.textContent = "已選擇：" + f.name;
+  }
+
+  const goBtn = document.getElementById("go");
+  const prog = document.getElementById("prog");
+  const barFill = document.getElementById("barFill");
+  const stage = document.getElementById("stage");
+  const errEl = document.getElementById("err");
+  const resultCard = document.getElementById("resultCard");
+  const out = document.getElementById("out");
+
+  goBtn.onclick = async () => {
+    errEl.textContent = "";
+    const fd = new FormData();
+    fd.append("mode", currentTab);
+    if (currentTab === "url") {
+      const url = document.getElementById("url").value.trim();
+      if (!url) { errEl.textContent = "請先貼上網址"; return; }
+      fd.append("url", url);
+    } else {
+      if (!selectedFile) { errEl.textContent = "請先選擇檔案"; return; }
+      fd.append("file", selectedFile);
+    }
+
+    goBtn.disabled = true;
+    resultCard.classList.add("hidden");
+    prog.style.display = "block";
+    barFill.style.width = "0%";
+    stage.textContent = "送出中…";
+
+    try {
+      const r = await fetch("/api/job", { method: "POST", body: fd });
+      if (!r.ok) throw new Error((await r.json()).detail || "送出失敗");
+      jobId = (await r.json()).job_id;
+      poll = setInterval(checkStatus, 1500);
+    } catch (e) {
+      errEl.textContent = e.message;
+      goBtn.disabled = false;
+      prog.style.display = "none";
+    }
+  };
+
+  async function checkStatus() {
+    const r = await fetch("/api/status/" + jobId);
+    if (!r.ok) return;
+    const j = await r.json();
+    barFill.style.width = Math.round((j.progress || 0) * 100) + "%";
+    stage.textContent = j.stage || "";
+    if (j.state === "done") {
+      clearInterval(poll);
+      goBtn.disabled = false;
+      prog.style.display = "none";
+      document.getElementById("resTitle").textContent =
+        "逐字稿　" + (j.title ? "— " + j.title : "");
+      out.value = j.text || "(沒有辨識到內容)";
+      resultCard.classList.remove("hidden");
+      document.getElementById("dlTxt").onclick =
+        () => location.href = `/api/download/${jobId}/txt`;
+      document.getElementById("dlSrt").onclick =
+        () => location.href = `/api/download/${jobId}/srt`;
+    } else if (j.state === "error") {
+      clearInterval(poll);
+      goBtn.disabled = false;
+      prog.style.display = "none";
+      errEl.textContent = "錯誤：" + (j.error || "未知");
+    }
+  }
+
+  document.getElementById("copyBtn").onclick = () => {
+    navigator.clipboard.writeText(out.value);
+    const b = document.getElementById("copyBtn");
+    b.textContent = "✓ 已複製"; setTimeout(() => b.textContent = "📋 複製", 1500);
+  };
+</script>
+</body>
+</html>

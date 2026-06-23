@@ -14,13 +14,16 @@
   const thumbnail = $("#thumbnail");
   const videoTitle = $("#videoTitle");
   const duration = $("#duration");
+  const platformChip = $("#platformChip span");
   const uploader = $("#uploader span");
   const views = $("#views span");
   const qualitySection = $("#qualitySection");
   const qualityOptions = $("#qualityOptions");
   const downloadBtn = $("#downloadBtn");
+  const platformStatus = $("#platformStatus");
 
   const progressBar = $("#progressBar");
+  const progressFilename = $("#progressFilename");
   const progressPercent = $("#progressPercent");
   const progressSize = $("#progressSize");
   const progressSpeed = $("#progressSpeed");
@@ -31,19 +34,49 @@
   const doneDownloadLink = $("#doneDownloadLink");
   const newDownloadBtn = $("#newDownloadBtn");
 
+  // --- Auth Check ---
+  const authOverlay = $("#authOverlay");
+  const authInput = $("#authInput");
+  const authBtn = $("#authBtn");
+  const authError = $("#authError");
+
+  if (localStorage.getItem("ytgrab_auth") === "泥鰍") {
+    authOverlay.classList.add("unlocked");
+  }
+
+  function checkAuth() {
+    if (authInput.value.trim() === "泥鰍") {
+      localStorage.setItem("ytgrab_auth", "泥鰍");
+      authError.classList.add("hidden");
+      authOverlay.classList.add("unlocked");
+    } else {
+      authError.classList.remove("hidden");
+      authInput.value = "";
+      authInput.focus();
+    }
+  }
+
+  authBtn.addEventListener("click", checkAuth);
+  authInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") checkAuth();
+  });
+
   let currentMode = "video";
   let currentQuality = null;
   let currentUrl = "";
+  let currentPlatform = "";
   let videoFormats = [];
 
   // --- URL Input ---
   urlInput.addEventListener("input", () => {
     clearBtn.classList.toggle("visible", urlInput.value.length > 0);
+    renderPlatformStatus(urlInput.value.trim());
   });
 
   clearBtn.addEventListener("click", () => {
     urlInput.value = "";
     clearBtn.classList.remove("visible");
+    renderPlatformStatus("");
     urlInput.focus();
   });
 
@@ -56,6 +89,13 @@
     const url = urlInput.value.trim();
     if (!url) return urlInput.focus();
 
+    const detected = detectPlatform(url);
+    if (!detected.supported) {
+      renderPlatformStatus(url);
+      alert("錯誤：" + detected.message);
+      return;
+    }
+
     currentUrl = url;
     showOnly("loading");
     fetchBtn.disabled = true;
@@ -67,9 +107,11 @@
       if (!res.ok) throw new Error(data.error);
 
       // Populate
+      currentPlatform = data.platform || detected.label;
       thumbnail.src = data.thumbnail;
       videoTitle.textContent = data.title;
       duration.textContent = formatDuration(data.duration);
+      platformChip.textContent = currentPlatform;
       uploader.textContent = data.uploader || "未知";
       views.textContent = data.view_count
         ? Number(data.view_count).toLocaleString() + " 次觀看"
@@ -101,6 +143,7 @@
   // --- Quality ---
   function renderQuality() {
     qualityOptions.innerHTML = "";
+    currentQuality = null;
     const heights = [2160, 1440, 1080, 720, 480, 360];
     const labels = {
       2160: "4K",
@@ -119,6 +162,16 @@
       available.push(
         ...new Set(videoFormats.map((f) => f.height).sort((a, b) => b - a))
       );
+    }
+
+    if (available.length === 0) {
+      const chip = document.createElement("button");
+      chip.className = "quality-chip active";
+      chip.textContent = "最佳";
+      chip.dataset.quality = "";
+      currentQuality = null;
+      qualityOptions.appendChild(chip);
+      return;
     }
 
     available.forEach((h, i) => {
@@ -148,6 +201,7 @@
     progressSize.textContent = "--";
     progressSpeed.textContent = "--";
     progressEta.textContent = "--";
+    progressFilename.textContent = `${currentPlatform || "影片"} · ${videoTitle.textContent || "下載中"}`;
     logArea.textContent = "";
 
     socket.emit("download", {
@@ -187,6 +241,7 @@
   newDownloadBtn.addEventListener("click", () => {
     urlInput.value = "";
     clearBtn.classList.remove("visible");
+    renderPlatformStatus("");
     showOnly("input");
     urlInput.focus();
   });
@@ -219,4 +274,64 @@
     if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${m}:${String(s).padStart(2, "0")}`;
   }
+
+  function detectPlatform(rawUrl) {
+    if (!rawUrl) {
+      return {
+        label: "等待連結",
+        supported: true,
+        tone: "neutral",
+        message: "支援 YouTube、Facebook Reels、Instagram Reels / 單篇影片。Threads 目前暫不支援。",
+      };
+    }
+
+    let host = "";
+    try {
+      host = new URL(rawUrl).hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      return {
+        label: "網址格式錯誤",
+        supported: false,
+        tone: "bad",
+        message: "請貼上完整網址，例如 https://www.facebook.com/reel/...",
+      };
+    }
+
+    if (host.includes("threads.net")) {
+      return {
+        label: "Threads",
+        supported: false,
+        tone: "bad",
+        message: "Threads 目前不穩定，先列為暫不支援。",
+      };
+    }
+
+    if (host.includes("youtube.com") || host.includes("youtu.be")) {
+      return { label: "YouTube", supported: true, tone: "good", message: "支援 YouTube 影片與 Shorts。" };
+    }
+
+    if (host.includes("facebook.com") || host.includes("fb.watch")) {
+      return { label: "Facebook", supported: true, tone: "good", message: "支援 Facebook Reels 與公開影片。" };
+    }
+
+    if (host.includes("instagram.com")) {
+      return { label: "Instagram", supported: true, tone: "good", message: "支援 Instagram Reels 與公開單篇影片。" };
+    }
+
+    return {
+      label: "未支援平台",
+      supported: false,
+      tone: "bad",
+      message: "目前支援 YouTube、Facebook Reels、Instagram Reels / 單篇影片。",
+    };
+  }
+
+  function renderPlatformStatus(rawUrl) {
+    const detected = detectPlatform(rawUrl);
+    platformStatus.classList.remove("status-good", "status-bad", "status-neutral");
+    platformStatus.classList.add(`status-${detected.tone}`);
+    platformStatus.querySelector("span:last-child").textContent = `${detected.label}：${detected.message}`;
+  }
+
+  renderPlatformStatus("");
 })();

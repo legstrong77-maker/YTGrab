@@ -2,3 +2,8 @@ node_modules/
 downloads/
 .env
 .DS_Store
+
+# 逐字稿暫存與執行期產物
+__pycache__/
+transcribe_work/
+*.log

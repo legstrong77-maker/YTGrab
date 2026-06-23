@@ -1,13 +1,14 @@
-# YTGrab — YouTube 影片下載器
+# YTGrab — 多平台影片下載器
 
-一個美觀、快速、本機運行的 YouTube 影片與音訊下載工具。
+一個美觀、快速、本機運行的 YouTube、Facebook Reels、Instagram Reels / 單篇影片下載工具。
 使用 Node.js, Express, Socket.IO, yt-dlp 和 FFmpeg 打造。
 
 ## 🌟 特色功能
 
 - **本機執行**：完全在你的電腦上處理，不經過第三方伺服器，安全私密。
+- **多平台支援**：支援 YouTube、Facebook Reels、Instagram Reels / 單篇公開影片；Threads 目前暫不支援。
 - **支援 4K 畫質**：自動抓取並合併最佳影像與音訊軌。
-- **MP3 擷取**：直接將 YouTube 影片轉換為高品質 MP3 音檔。
+- **MP3 擷取**：直接將支援平台影片轉換為高品質 MP3 音檔。
 - **即時進度**：透過 WebSocket 顯示毫秒級的下載進度、速度與預估剩餘時間。
 - **現代化 UI**：採用玻璃擬態（Glassmorphism）設計的深色主題，提供極致的操作體驗。
 
@@ -17,7 +18,7 @@
 
 1. **[Node.js](https://nodejs.org/)** (建議 v16 以上)
 2. **[Python 3](https://www.python.org/)** (yt-dlp 需要)
-3. **yt-dlp**: YouTube 下載核心引擎
+3. **yt-dlp**: 影片下載核心引擎
    ```bash
    pip install yt-dlp
    ```
@@ -40,6 +41,13 @@
    ```
 5. **開啟瀏覽器**
    前往 `http://localhost:3000` 即可開始下載影片！
+
+## ✅ 支援狀態
+
+- **YouTube / Shorts**：支援影片與 MP3。
+- **Facebook Reels / 公開影片**：支援公開內容；私人或登入限定內容可能需要 cookies。
+- **Instagram Reels / 公開單篇影片**：支援公開內容；私人或登入限定內容可能需要 cookies。
+- **Threads**：目前 yt-dlp 尚未提供可靠支援，本工具會先擋下並提示。
 
 ## 📁 資料夾結構
 

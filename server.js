@@ -17,6 +17,60 @@ const FFMPEG_DIR = String.raw`C:\Users\User\AppData\Local\Microsoft\WinGet\Packa
 
 app.use(express.static(path.join(__dirname, "public")));
 
+function getPlatform(url) {
+  let host = "";
+  try {
+    host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return {
+      key: "invalid",
+      label: "無效網址",
+      supported: false,
+      error: "請貼上完整網址，例如 https://www.instagram.com/reel/...",
+    };
+  }
+
+  if (host.includes("threads.net")) {
+    return {
+      key: "threads",
+      label: "Threads",
+      supported: false,
+      error:
+        "Threads 目前不穩定，yt-dlp 尚未提供可靠支援。請先使用 YouTube、Facebook Reels 或 Instagram 影片連結。",
+    };
+  }
+
+  if (host.includes("youtube.com") || host.includes("youtu.be")) {
+    return { key: "youtube", label: "YouTube", supported: true };
+  }
+
+  if (host.includes("facebook.com") || host.includes("fb.watch")) {
+    return { key: "facebook", label: "Facebook", supported: true };
+  }
+
+  if (host.includes("instagram.com")) {
+    return { key: "instagram", label: "Instagram", supported: true };
+  }
+
+  return {
+    key: "unknown",
+    label: "未支援平台",
+    supported: false,
+    error:
+      "目前支援 YouTube、Facebook Reels、Instagram Reels / 單篇影片。Threads 先列為暫不支援。",
+  };
+}
+
+function buildBaseArgs() {
+  return [
+    "-m",
+    "yt_dlp",
+    "--no-playlist",
+    "--ffmpeg-location",
+    FFMPEG_DIR,
+  ];
+}
+
 // File download API - handles any filename safely
 app.get("/api/file/:id", (req, res) => {
   const id = req.params.id;
@@ -38,13 +92,14 @@ app.get("/api/info", async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).json({ error: "缺少 URL" });
 
+  const platform = getPlatform(url);
+  if (!platform.supported) {
+    return res.status(400).json({ error: platform.error, platform });
+  }
+
   const args = [
-    "-m",
-    "yt_dlp",
+    ...buildBaseArgs(),
     "--dump-json",
-    "--no-playlist",
-    "--ffmpeg-location",
-    FFMPEG_DIR,
     url,
   ];
   const proc = spawn("python", args, {
@@ -57,10 +112,16 @@ app.get("/api/info", async (req, res) => {
   proc.stderr.on("data", (chunk) => (err += chunk.toString("utf-8")));
   proc.on("close", (code) => {
     if (code !== 0)
-      return res.status(500).json({ error: err || "取得影片資訊失敗" });
+      return res.status(500).json({
+        error:
+          err ||
+          `${platform.label} 影片資訊解析失敗。若是私人內容，可能需要登入 cookies。`,
+        platform,
+      });
     try {
       const info = JSON.parse(data);
       res.json({
+        platform: platform.label,
         title: info.title,
         thumbnail: info.thumbnail,
         duration: info.duration,
@@ -82,7 +143,7 @@ app.get("/api/info", async (req, res) => {
           .sort((a, b) => b.height - a.height),
       });
     } catch (e) {
-      res.status(500).json({ error: "解析影片資訊失敗" });
+      res.status(500).json({ error: "解析影片資訊失敗", platform });
     }
   });
 });
@@ -91,26 +152,28 @@ app.get("/api/info", async (req, res) => {
 io.on("connection", (socket) => {
   socket.on("download", (opts) => {
     const { url, mode, quality, title } = opts;
+    const platform = getPlatform(url);
+    if (!platform.supported) {
+      socket.emit("error", platform.error);
+      return;
+    }
+
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
     // Use ID-based filename to avoid encoding issues on Windows
     const outTemplate = path.join(DOWNLOAD_DIR, `${id}.%(ext)s`);
 
     let args = [
-      "-m",
-      "yt_dlp",
-      "--no-playlist",
+      ...buildBaseArgs(),
       "--newline",
       "--progress",
-      "--ffmpeg-location",
-      FFMPEG_DIR,
     ];
 
     if (mode === "audio") {
       args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
     } else {
       const fmt = quality
-        ? `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`
+        ? `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`
         : "bestvideo+bestaudio/best";
       args.push("-f", fmt, "--merge-output-format", "mp4");
     }
@@ -166,7 +229,10 @@ io.on("connection", (socket) => {
           socket.emit("error", "下載完成但找不到檔案");
         }
       } else {
-        socket.emit("error", "下載失敗");
+        socket.emit(
+          "error",
+          `${platform.label} 下載失敗。若是私人內容或限登入內容，可能需要 cookies。`
+        );
       }
     });
 
@@ -178,5 +244,5 @@ io.on("connection", (socket) => {
 
 const PORT = 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 YouTube 下載器運行中: http://localhost:${PORT}`);
+  console.log(`YTGrab 多平台下載器已啟動：http://localhost:${PORT}`);
 });
