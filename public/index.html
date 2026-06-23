@@ -476,16 +476,17 @@
           </div>
 
           <div id="tsPaneUrl" class="ts-pane">
-            <input type="text" id="tsUrl" class="ts-input" placeholder="貼上 YouTube / Facebook / Instagram 影片網址…" autocomplete="off" spellcheck="false" />
+            <textarea id="tsUrl" class="ts-input ts-textarea" rows="3" placeholder="一行一個網址，可一次貼多個（YouTube / Facebook / Instagram）…&#10;https://www.youtube.com/watch?v=...&#10;https://www.youtube.com/watch?v=..." spellcheck="false"></textarea>
+            <p class="ts-hint">會由上到下「依序」逐字稿，全部完成後可一次打包下載。</p>
           </div>
 
           <div id="tsPaneFile" class="ts-pane hidden">
             <div class="file-drop" id="tsDrop">
-              點此選擇，或將影片 / 音訊檔拖曳到這裡
+              點此選擇，或將影片 / 音訊檔拖曳到這裡（可多選）
               <small>支援 mp4 / mp3 / wav / m4a / mov…</small>
               <div class="ts-filename" id="tsFileName"></div>
             </div>
-            <input type="file" id="tsFile" class="hidden" accept="audio/*,video/*" />
+            <input type="file" id="tsFile" class="hidden" accept="audio/*,video/*" multiple />
           </div>
 
           <button class="btn btn-download btn-glow" id="tsGo">
@@ -494,6 +495,7 @@
           </button>
 
           <div class="ts-progress hidden" id="tsProg">
+            <div class="ts-batchline" id="tsBatchLine"></div>
             <div class="progress-bar-wrap">
               <div class="progress-bar" id="tsBar"><div class="progress-bar-shimmer"></div></div>
             </div>
@@ -502,17 +504,16 @@
           <p class="ts-err hidden" id="tsErr"></p>
         </section>
 
-        <!-- Result -->
+        <!-- Result (batch) -->
         <section class="card glass hidden" id="tsResultCard">
           <div class="ts-result-head">
-            <h3 id="tsResTitle">逐字稿</h3>
+            <h3 id="tsResTitle">逐字稿結果</h3>
             <div class="ts-actions">
-              <button class="btn btn-ghost ts-mini" id="tsCopy">📋 複製</button>
-              <button class="btn btn-ghost ts-mini" id="tsDlTxt">⬇ .txt</button>
-              <button class="btn btn-ghost ts-mini" id="tsDlSrt">⬇ .srt 字幕</button>
+              <button class="btn btn-ghost ts-mini" id="tsDlAllTxt">⬇ 全部 .txt (ZIP)</button>
+              <button class="btn btn-ghost ts-mini" id="tsDlAllSrt">⬇ 全部 .srt (ZIP)</button>
             </div>
           </div>
-          <textarea id="tsOut" class="ts-out" readonly></textarea>
+          <div id="tsBatchList" class="ts-batch-list"></div>
         </section>
 
         <!-- How it works (transcribe) -->

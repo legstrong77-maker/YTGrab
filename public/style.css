@@ -264,4 +264,31 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .ts-mini{padding:9px 14px;font-size:.76rem}
 .ts-out{width:100%;min-height:300px;resize:vertical;padding:16px;border-radius:var(--radius-s);border:1px solid var(--card-border);background:rgba(0,0,0,.3);color:var(--text);font-size:.9rem;line-height:1.8;font-family:var(--font);outline:none;white-space:pre-wrap}
 .ts-out:focus{border-color:var(--accent2)}
-@media(max-width:640px){.ts-source{flex-direction:column}.ts-result-head{flex-direction:column;align-items:flex-start}}
+
+/* 多網址輸入 */
+.ts-textarea{resize:vertical;min-height:78px;line-height:1.6;font-family:var(--mono);font-size:.85rem;white-space:pre}
+.ts-hint{margin-top:8px;font-size:.74rem;color:var(--text3)}
+
+/* 批次進度行 */
+.ts-batchline{font-size:.78rem;color:var(--accent2);font-weight:700;margin-bottom:8px;font-family:var(--mono)}
+.ts-batchline:empty{display:none}
+
+/* 批次結果列表 */
+.ts-batch-list{display:flex;flex-direction:column;gap:10px}
+.ts-item{border:1px solid var(--card-border);border-radius:var(--radius-s);background:rgba(255,255,255,.02);padding:12px 14px;transition:.2s}
+.ts-item.ts-flash{border-color:var(--success);box-shadow:0 0 0 3px rgba(0,230,118,.12)}
+.ts-item-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ts-item-status{font-size:.68rem;font-weight:800;padding:3px 9px;border-radius:20px;flex-shrink:0;letter-spacing:.04em}
+.badge-queued{background:rgba(255,255,255,.06);color:var(--text2)}
+.badge-running{background:rgba(255,8,68,.12);color:var(--accent2);animation:pulse 1.4s infinite}
+.badge-done{background:rgba(0,230,118,.12);color:var(--success)}
+.badge-error{background:rgba(255,8,68,.14);color:#ff9bb4}
+.ts-item-title{flex:1;min-width:0;font-size:.84rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-item-sub{font-size:.72rem;color:var(--text3);font-family:var(--mono);flex-basis:100%;order:9}
+.ts-item-sub.is-err{color:#ff9bb4;font-family:var(--font)}
+.ts-item-sub:empty{display:none}
+.ts-item-actions{display:flex;gap:6px;flex-wrap:wrap}
+.ts-item-actions .ts-mini{padding:6px 10px;font-size:.72rem}
+.ts-item-text{width:100%;min-height:160px;resize:vertical;margin-top:10px;padding:12px;border-radius:10px;border:1px solid var(--card-border);background:rgba(0,0,0,.3);color:var(--text);font-size:.86rem;line-height:1.8;font-family:var(--font);outline:none;white-space:pre-wrap}
+
+@media(max-width:640px){.ts-source{flex-direction:column}.ts-result-head{flex-direction:column;align-items:flex-start}.ts-item-title{flex-basis:100%;order:1}}

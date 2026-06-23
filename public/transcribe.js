@@ -52,13 +52,13 @@
     })
   );
 
-  // ---- 檔案拖放 ----
-  let file = null;
+  // ---- 檔案拖放（可多選）----
+  let files = [];
   const drop = $("#tsDrop");
   const fileInput = $("#tsFile");
   const fileNameEl = $("#tsFileName");
   drop.addEventListener("click", () => fileInput.click());
-  fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
+  fileInput.addEventListener("change", () => setFiles(fileInput.files));
   ["dragover", "dragenter"].forEach((e) =>
     drop.addEventListener(e, (ev) => {
       ev.preventDefault();
@@ -71,84 +71,242 @@
       drop.classList.remove("over");
     })
   );
-  drop.addEventListener("drop", (ev) => setFile(ev.dataTransfer.files[0]));
-  function setFile(f) {
-    if (!f) return;
-    file = f;
-    fileNameEl.textContent = "已選擇：" + f.name;
+  drop.addEventListener("drop", (ev) => setFiles(ev.dataTransfer.files));
+  function setFiles(list) {
+    files = Array.from(list || []);
+    if (!files.length) {
+      fileNameEl.textContent = "";
+    } else if (files.length === 1) {
+      fileNameEl.textContent = "已選擇：" + files[0].name;
+    } else {
+      fileNameEl.textContent = `已選擇 ${files.length} 個檔案：` + files.map((f) => f.name).join("、");
+    }
   }
 
-  // ---- 送出工作 + 輪詢進度 ----
+  // ---- 批次處理 ----
   const go = $("#tsGo");
   const prog = $("#tsProg");
   const bar = $("#tsBar");
   const stage = $("#tsStage");
+  const batchLine = $("#tsBatchLine");
   const err = $("#tsErr");
   const resultCard = $("#tsResultCard");
-  const out = $("#tsOut");
-  const resTitle = $("#tsResTitle");
-  let jobId = null;
-  let poll = null;
+  const batchList = $("#tsBatchList");
+  const dlAllTxt = $("#tsDlAllTxt");
+  const dlAllSrt = $("#tsDlAllSrt");
+
+  let doneJobIds = []; // 完成的 job_id，供打包下載
 
   go.addEventListener("click", async () => {
     hideErr();
-    const fd = new FormData();
-    fd.append("mode", src);
+
+    // 1) 收集這批要處理的項目
+    let items = [];
     if (src === "url") {
-      const u = $("#tsUrl").value.trim();
-      if (!u) return showErr("請先貼上影片網址");
-      fd.append("url", u);
+      const lines = $("#tsUrl").value
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!lines.length) return showErr("請先貼上至少一個網址");
+      items = lines.map((u) => ({ kind: "url", value: u, label: u }));
     } else {
-      if (!file) return showErr("請先選擇檔案");
-      fd.append("file", file);
+      if (!files.length) return showErr("請先選擇至少一個檔案");
+      items = files.map((f) => ({ kind: "file", value: f, label: f.name }));
     }
 
+    // 2) 準備 UI
     go.disabled = true;
-    resultCard.classList.add("hidden");
-    prog.classList.remove("hidden");
-    bar.style.width = "0%";
-    stage.textContent = "送出中…";
+    doneJobIds = [];
+    batchList.innerHTML = "";
+    resultCard.classList.remove("hidden");
+    updateBatchDownloadButtons();
+    const rows = items.map((it, i) => makeRow(it, i));
 
-    try {
-      const r = await fetch(API + "/api/job", { method: "POST", body: fd });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.detail || "送出失敗");
-      jobId = j.job_id;
-      poll = setInterval(checkStatus, 1500);
-    } catch (e) {
-      stopWith(connErr(e));
+    // 3) 依序處理
+    prog.classList.remove("hidden");
+    for (let i = 0; i < items.length; i++) {
+      batchLine.textContent = `整批進度 ${i + 1} / ${items.length}`;
+      bar.style.width = "0%";
+      stage.textContent = "送出中…";
+      setRowState(rows[i], "running", "處理中…");
+      try {
+        const jobId = await submitJob(items[i]);
+        const res = await pollJob(jobId, rows[i]);
+        finishRow(rows[i], jobId, res);
+        doneJobIds.push(jobId);
+        updateBatchDownloadButtons();
+      } catch (e) {
+        setRowState(rows[i], "error", connErr(e));
+      }
     }
+
+    // 4) 收尾
+    prog.classList.add("hidden");
+    go.disabled = false;
+    batchLine.textContent = "";
+    if (!doneJobIds.length) showErr("這批全部失敗了，請檢查網址或伺服器狀態。");
   });
 
-  async function checkStatus() {
-    try {
-      const r = await fetch(API + "/api/status/" + jobId, { cache: "no-store" });
-      if (!r.ok) return;
+  function submitJob(item) {
+    const fd = new FormData();
+    fd.append("mode", item.kind);
+    if (item.kind === "url") fd.append("url", item.value);
+    else fd.append("file", item.value);
+    return fetch(API + "/api/job", { method: "POST", body: fd }).then(async (r) => {
       const j = await r.json();
-      bar.style.width = Math.round((j.progress || 0) * 100) + "%";
-      stage.textContent = j.stage || "";
-      if (j.state === "done") {
-        clearInterval(poll);
-        go.disabled = false;
-        prog.classList.add("hidden");
-        resTitle.textContent = "逐字稿" + (j.title ? " — " + j.title : "");
-        out.value = j.text || "(沒有辨識到內容)";
-        resultCard.classList.remove("hidden");
-        resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
-      } else if (j.state === "error") {
-        stopWith("錯誤：" + (j.error || "未知"));
-      }
-    } catch (e) {
-      stopWith(connErr(e));
+      if (!r.ok) throw new Error(j.detail || "送出失敗");
+      return j.job_id;
+    });
+  }
+
+  function pollJob(jobId, row) {
+    return new Promise((resolve, reject) => {
+      const t = setInterval(async () => {
+        try {
+          const r = await fetch(API + "/api/status/" + jobId, { cache: "no-store" });
+          if (!r.ok) return;
+          const j = await r.json();
+          const pct = Math.round((j.progress || 0) * 100);
+          bar.style.width = pct + "%";
+          stage.textContent = j.stage || "";
+          setRowStatusText(row, j.stage || "處理中…");
+          if (j.state === "done") {
+            clearInterval(t);
+            resolve(j);
+          } else if (j.state === "error") {
+            clearInterval(t);
+            reject(new Error(j.error || "辨識失敗"));
+          }
+        } catch (e) {
+          clearInterval(t);
+          reject(e);
+        }
+      }, 1500);
+    });
+  }
+
+  // ---- 批次列表 row ----
+  function makeRow(item, idx) {
+    const row = document.createElement("div");
+    row.className = "ts-item";
+    row.innerHTML = `
+      <div class="ts-item-head">
+        <span class="ts-item-status badge-queued">排隊中</span>
+        <span class="ts-item-title"></span>
+        <div class="ts-item-actions"></div>
+      </div>
+      <textarea class="ts-item-text hidden" readonly></textarea>`;
+    row.querySelector(".ts-item-title").textContent = `${idx + 1}. ${item.label}`;
+    batchList.appendChild(row);
+    return row;
+  }
+
+  function setRowState(row, state, statusText) {
+    const badge = row.querySelector(".ts-item-status");
+    badge.className = "ts-item-status";
+    if (state === "running") badge.classList.add("badge-running");
+    else if (state === "done") badge.classList.add("badge-done");
+    else if (state === "error") badge.classList.add("badge-error");
+    else badge.classList.add("badge-queued");
+    badge.textContent =
+      state === "running" ? "處理中" : state === "done" ? "完成" : state === "error" ? "失敗" : "排隊中";
+    if (statusText) setRowStatusText(row, statusText, state === "error");
+  }
+
+  function setRowStatusText(row, text, isErr) {
+    let el = row.querySelector(".ts-item-sub");
+    if (!el) {
+      el = document.createElement("span");
+      el.className = "ts-item-sub";
+      row.querySelector(".ts-item-head").appendChild(el);
+    }
+    el.textContent = text;
+    el.classList.toggle("is-err", !!isErr);
+  }
+
+  function finishRow(row, jobId, j) {
+    setRowState(row, "done");
+    const title = j.title ? j.title : "";
+    if (title) row.querySelector(".ts-item-title").textContent =
+      row.querySelector(".ts-item-title").textContent.replace(/\..*$/, "") + ". " + title;
+    setRowStatusText(row, "");
+    const ta = row.querySelector(".ts-item-text");
+    ta.value = j.text || "(沒有辨識到內容)";
+    const actions = row.querySelector(".ts-item-actions");
+    actions.innerHTML = "";
+    const mk = (label, fn) => {
+      const b = document.createElement("button");
+      b.className = "btn btn-ghost ts-mini";
+      b.textContent = label;
+      b.addEventListener("click", fn);
+      actions.appendChild(b);
+      return b;
+    };
+    const toggle = mk("展開", () => {
+      const hidden = ta.classList.toggle("hidden");
+      toggle.textContent = hidden ? "展開" : "收合";
+    });
+    mk("📋", () => {
+      navigator.clipboard.writeText(ta.value);
+      flash(row);
+    });
+    mk("⬇ .txt", () => downloadOne(jobId, "txt"));
+    mk("⬇ .srt", () => downloadOne(jobId, "srt"));
+  }
+
+  function flash(row) {
+    row.classList.add("ts-flash");
+    setTimeout(() => row.classList.remove("ts-flash"), 600);
+  }
+
+  // ---- 下載 ----
+  function updateBatchDownloadButtons() {
+    const has = doneJobIds.length > 0;
+    dlAllTxt.disabled = !has;
+    dlAllSrt.disabled = !has;
+    dlAllTxt.textContent = has ? `⬇ 全部 .txt (ZIP·${doneJobIds.length})` : "⬇ 全部 .txt (ZIP)";
+    dlAllSrt.textContent = has ? `⬇ 全部 .srt (ZIP·${doneJobIds.length})` : "⬇ 全部 .srt (ZIP)";
+  }
+
+  dlAllTxt.addEventListener("click", () => downloadZip("txt"));
+  dlAllSrt.addEventListener("click", () => downloadZip("srt"));
+
+  async function downloadZip(fmt) {
+    if (!doneJobIds.length) return;
+    const url = `${API}/api/download_zip?ids=${doneJobIds.join(",")}&fmt=${fmt}`;
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw 0;
+      const blob = await r.blob();
+      triggerDownload(blob, `逐字稿_${fmt}.zip`);
+    } catch {
+      showErr("打包下載失敗，請重試。");
     }
   }
 
-  function stopWith(msg) {
-    if (poll) clearInterval(poll);
-    go.disabled = false;
-    prog.classList.add("hidden");
-    showErr(msg);
+  async function downloadOne(jobId, fmt) {
+    try {
+      const r = await fetch(`${API}/api/download/${jobId}/${fmt}`);
+      if (!r.ok) throw 0;
+      const blob = await r.blob();
+      const cd = r.headers.get("content-disposition") || "";
+      const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+      const name = m ? decodeURIComponent(m[1]) : `transcript.${fmt}`;
+      triggerDownload(blob, name);
+    } catch {
+      showErr("下載失敗，請稍後重試。");
+    }
   }
+
+  function triggerDownload(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+
+  // ---- 錯誤 / 工具 ----
   function showErr(m) {
     err.textContent = m;
     err.classList.remove("hidden");
@@ -164,33 +322,5 @@
     return msg || "發生未知錯誤";
   }
 
-  // ---- 複製 / 下載 ----
-  $("#tsCopy").addEventListener("click", () => {
-    navigator.clipboard.writeText(out.value);
-    const b = $("#tsCopy");
-    const t = b.textContent;
-    b.textContent = "✓ 已複製";
-    setTimeout(() => (b.textContent = t), 1400);
-  });
-  $("#tsDlTxt").addEventListener("click", () => downloadResult("txt"));
-  $("#tsDlSrt").addEventListener("click", () => downloadResult("srt"));
-
-  async function downloadResult(fmt) {
-    if (!jobId) return;
-    try {
-      const r = await fetch(`${API}/api/download/${jobId}/${fmt}`);
-      if (!r.ok) throw 0;
-      const blob = await r.blob();
-      const cd = r.headers.get("content-disposition") || "";
-      const m = cd.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
-      const name = m ? decodeURIComponent(m[1]) : `transcript.${fmt}`;
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    } catch {
-      showErr("下載失敗，請稍後重試。");
-    }
-  }
+  updateBatchDownloadButtons();
 })();

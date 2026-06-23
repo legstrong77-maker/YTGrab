@@ -24,8 +24,10 @@ import soundfile as sf
 import torch
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+import io
+import zipfile
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 
 # 安靜輸出：避免每段辨識都噴 transformers 警告（也減少在背景視窗卡住寫入的風險）
@@ -302,6 +304,46 @@ def download(job_id: str, fmt: str):
     safe = re.sub(r'[\\/:*?"<>|]', "_", job.get("title") or job_id)
     return FileResponse(path, filename=f"{safe}.{fmt}",
                         media_type="text/plain; charset=utf-8")
+
+
+@app.get("/api/download_zip")
+def download_zip(ids: str, fmt: str = "txt"):
+    """把多個已完成工作的逐字稿打包成一個 zip 下載。
+    ids: 逗號分隔的 job_id；fmt: txt / srt / both。"""
+    job_ids = [x for x in ids.split(",") if x]
+    fmts = ["txt", "srt"] if fmt == "both" else [fmt]
+    if any(f not in ("txt", "srt") for f in fmts):
+        raise HTTPException(400, "格式錯誤")
+
+    buf = io.BytesIO()
+    used = set()
+    count = 0
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for jid in job_ids:
+            job = JOBS.get(jid)
+            if not job or job.get("state") != "done":
+                continue
+            safe = re.sub(r'[\\/:*?"<>|]', "_", job.get("title") or jid)
+            for f in fmts:
+                p = WORK_DIR / f"{jid}.{f}"
+                if not p.exists():
+                    continue
+                name = f"{safe}.{f}"
+                k = 1
+                while name in used:               # 避免同名覆蓋
+                    name = f"{safe} ({k}).{f}"
+                    k += 1
+                used.add(name)
+                zf.write(p, name)
+                count += 1
+
+    if count == 0:
+        raise HTTPException(404, "沒有可下載的已完成逐字稿")
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="transcripts.zip"'},
+    )
 
 
 @app.get("/api/health")
