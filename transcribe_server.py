@@ -366,6 +366,43 @@ def process_job(job_id: str):
         job.update(state="error", error=str(e), stage="發生錯誤")
 
 
+def process_burn(job_id: str):
+    """把字幕合進影片：soft=軟字幕軌（快）；hard=燒錄硬字幕（重新編碼，優先用 GPU）。"""
+    job = JOBS[job_id]
+    try:
+        vid = Path(job["video_path"])
+        srt = WORK_DIR / f"{job_id}.sub.srt"
+        out = WORK_DIR / f"{job_id}.out.mp4"
+        if not srt.exists():
+            raise RuntimeError("找不到字幕檔")
+
+        if job["burn_mode"] == "soft":
+            job.update(stage="封裝軟字幕中…", progress=0.4)
+            r = run([FFMPEG, "-y", "-i", str(vid), "-i", str(srt),
+                     "-c", "copy", "-c:s", "mov_text",
+                     "-metadata:s:s:0", "language=chi", str(out)])
+            if r.returncode != 0 or not out.exists():
+                raise RuntimeError("軟字幕封裝失敗：" + (r.stderr[-400:] if r.stderr else ""))
+        else:
+            job.update(stage="燒錄硬字幕中…（重新編碼，可能需要數分鐘）", progress=0.3)
+            # 用相對檔名避開 Windows subtitles 濾鏡的路徑跳脫問題（cwd 設為 WORK_DIR）
+            rel = f"{job_id}.sub.srt"
+            base = [FFMPEG, "-y", "-i", str(vid), "-vf", f"subtitles={rel}", "-c:a", "copy"]
+            kw = dict(capture_output=True, text=True, encoding="utf-8", errors="replace",
+                      cwd=str(WORK_DIR), env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            # 先試 GPU（nvenc），失敗退回 CPU（libx264）
+            r = subprocess.run(base + ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "23", str(out)], **kw)
+            if r.returncode != 0 or not out.exists():
+                job.update(stage="GPU 編碼不可用，改用 CPU 編碼…")
+                r = subprocess.run(base + ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", str(out)], **kw)
+            if r.returncode != 0 or not out.exists():
+                raise RuntimeError("字幕燒錄失敗：" + (r.stderr[-400:] if r.stderr else ""))
+
+        job.update(stage="完成", progress=1.0, state="done")
+    except Exception as e:
+        job.update(state="error", error=str(e), stage="發生錯誤")
+
+
 # ---------------------------------------------------------------------------
 # FastAPI
 # ---------------------------------------------------------------------------
@@ -574,6 +611,49 @@ def delete_result(job_id: str):
             pass
     JOBS.pop(job_id, None)
     return {"ok": True}
+
+
+@app.post("/api/burn")
+async def burn(
+    mode: str = Form("soft"),
+    history_id: str = Form(""),
+    video: UploadFile = File(...),
+    srt: UploadFile | None = File(None),
+):
+    job_id = uuid.uuid4().hex[:12]
+    vext = Path(video.filename or "video.mp4").suffix or ".mp4"
+    vpath = WORK_DIR / f"{job_id}.invid{vext}"
+    with open(vpath, "wb") as f:
+        shutil.copyfileobj(video.file, f)
+
+    srt_path = WORK_DIR / f"{job_id}.sub.srt"
+    if srt is not None and srt.filename:
+        with open(srt_path, "wb") as f:
+            shutil.copyfileobj(srt.file, f)
+    elif valid_id(history_id) and (WORK_DIR / f"{history_id}.srt").exists():
+        shutil.copyfile(WORK_DIR / f"{history_id}.srt", srt_path)
+    else:
+        raise HTTPException(400, "請提供字幕：上傳 .srt 或選擇一個歷史逐字稿")
+
+    JOBS[job_id] = {
+        "id": job_id, "state": "running", "stage": "準備中…", "progress": 0.0,
+        "title": Path(video.filename or "video").stem,
+        "burn_mode": "hard" if mode == "hard" else "soft",
+        "video_path": str(vpath), "error": "",
+    }
+    threading.Thread(target=process_burn, args=(job_id,), daemon=True).start()
+    return {"job_id": job_id}
+
+
+@app.get("/api/burn_download/{job_id}")
+def burn_download(job_id: str):
+    if not valid_id(job_id):
+        raise HTTPException(400, "參數錯誤")
+    out = WORK_DIR / f"{job_id}.out.mp4"
+    if not out.exists():
+        raise HTTPException(404, "尚未完成或不存在")
+    safe = re.sub(r'[\\/:*?"<>|]', "_", title_for(job_id))
+    return FileResponse(out, filename=f"{safe}_字幕.mp4", media_type="video/mp4")
 
 
 @app.get("/api/health")

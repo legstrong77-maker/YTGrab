@@ -5,7 +5,11 @@
 
   // ---- 工具分頁切換 ----
   const toolTabs = document.querySelectorAll(".tool-tab");
-  const views = { download: $("#view-download"), transcribe: $("#view-transcribe") };
+  const views = {
+    download: $("#view-download"),
+    transcribe: $("#view-transcribe"),
+    subtitle: $("#view-subtitle"),
+  };
   toolTabs.forEach((t) =>
     t.addEventListener("click", () => {
       toolTabs.forEach((x) => x.classList.toggle("active", x === t));
@@ -18,6 +22,8 @@
         loadHistory();
       } else if (v === "download" && window.loadDownloads) {
         window.loadDownloads();
+      } else if (v === "subtitle" && window.loadBurnHistory) {
+        window.loadBurnHistory();
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
     })
@@ -553,30 +559,24 @@
   });
 
   // ---- 整頁拖曳上傳 → 自動切到逐字稿檔案模式 ----
+  // （字幕分頁有自己的拖放區，故該分頁停用整頁攔截；用 timeout 收起遮罩較穩）
   const dropOverlay = $("#dropOverlay");
-  let dragDepth = 0;
+  let dragTimer = null;
   const hasFiles = (e) =>
     e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
-  window.addEventListener("dragenter", (e) => {
-    if (!hasFiles(e)) return;
-    dragDepth++;
-    dropOverlay.classList.add("show");
-  });
   window.addEventListener("dragover", (e) => {
-    if (hasFiles(e)) e.preventDefault();
-  });
-  window.addEventListener("dragleave", () => {
-    dragDepth--;
-    if (dragDepth <= 0) {
-      dragDepth = 0;
-      dropOverlay.classList.remove("show");
-    }
+    if (!hasFiles(e)) return;
+    if (views.subtitle.classList.contains("active")) return;
+    e.preventDefault();
+    dropOverlay.classList.add("show");
+    clearTimeout(dragTimer);
+    dragTimer = setTimeout(() => dropOverlay.classList.remove("show"), 160);
   });
   window.addEventListener("drop", (e) => {
     if (!hasFiles(e)) return;
-    e.preventDefault();
-    dragDepth = 0;
     dropOverlay.classList.remove("show");
+    if (views.subtitle.classList.contains("active")) return;
+    e.preventDefault();
     const fl = e.dataTransfer.files;
     if (!fl || !fl.length) return;
     document.querySelector('.tool-tab[data-view="transcribe"]').click();
