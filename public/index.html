@@ -761,6 +761,9 @@
             <button class="bd-seg" data-op="sheet">🔳 九宮格</button>
             <button class="bd-seg" data-op="split">✂️ 章節切割</button>
             <button class="bd-seg" data-op="merge">🔗 合併多支</button>
+            <button class="bd-seg" data-op="fade">🎚 淡入淡出</button>
+            <button class="bd-seg" data-op="vocal">🎤 去人聲</button>
+            <button class="bd-seg" data-op="audioclip">🎵 音訊片段</button>
           </div>
 
           <!-- 轉檔 -->
@@ -770,7 +773,10 @@
               <button class="bd-seg active" data-fmt="mp4">MP4</button>
               <button class="bd-seg" data-fmt="mkv">MKV</button>
               <button class="bd-seg" data-fmt="mp3">MP3</button>
+              <button class="bd-seg" data-fmt="m4a">M4A</button>
               <button class="bd-seg" data-fmt="wav">WAV</button>
+              <button class="bd-seg" data-fmt="flac">FLAC</button>
+              <button class="bd-seg" data-fmt="opus">OPUS</button>
             </div>
           </div>
 
@@ -857,6 +863,28 @@
           <div class="tb-params hidden" id="tbp-merge">
             <span class="tb-plabel">勾選要接在一起的影片（依清單由上到下的順序合併，統一成 1280×720）</span>
             <div id="tbMergeList" class="merge-list"></div>
+          </div>
+
+          <!-- 淡入淡出 -->
+          <div class="tb-params hidden" id="tbp-fade">
+            <span class="tb-plabel">淡入淡出長度（秒）</span>
+            <input type="number" id="tbFadeDur" class="ts-input clip-input" value="1" min="0.2" max="10" step="0.5" style="max-width:160px" />
+            <p class="ts-hint" style="margin-top:8px">片頭從黑畫面/無聲淡入，片尾淡出，影音同步。</p>
+          </div>
+
+          <!-- 去人聲 -->
+          <div class="tb-params hidden" id="tbp-vocal">
+            <p class="ts-hint" style="margin:0">用左右聲道相消移除置中的人聲，做出卡拉OK伴奏（保留畫面）。效果依歌曲混音而定，純人聲置中的歌最有效。</p>
+          </div>
+
+          <!-- 音訊片段 -->
+          <div class="tb-params hidden" id="tbp-audioclip">
+            <span class="tb-plabel">擷取時間段 → MP3</span>
+            <div class="clip-row" style="padding:0">
+              <input type="text" id="tbAcStart" class="ts-input clip-input" placeholder="開始 0:30" />
+              <span class="clip-arrow">→</span>
+              <input type="text" id="tbAcEnd" class="ts-input clip-input" placeholder="結束 1:45" />
+            </div>
           </div>
 
           <button class="btn btn-download btn-glow" id="tbGo">

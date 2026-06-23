@@ -261,7 +261,9 @@ select.ts-input option{background:#12121e;color:var(--text)}
 @media(max-width:560px){.tool-tab span{display:none}.tool-tab{padding:13px 8px}}
 
 /* ===== Toolbox ===== */
-.tb-ops{margin-bottom:6px;flex-wrap:wrap}
+.tb-ops{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--card-border);padding:6px;border-radius:12px;margin-bottom:6px}
+.tb-ops .bd-seg{text-align:center;padding:10px 8px;font-size:.78rem}
+@media(max-width:560px){.tb-ops{grid-template-columns:repeat(3,1fr)}}
 .tb-params{margin-top:16px;padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:var(--radius-s)}
 .tb-plabel{display:block;font-size:.74rem;color:var(--text2);font-weight:600;margin-bottom:8px}
 .tb-plabel:not(:first-child){margin-top:14px}

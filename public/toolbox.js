@@ -5,7 +5,7 @@
   const sourceSel = $("#tbSource");
   let op = "convert";
   const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2" };
-  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge"];
+  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge", "fade", "vocal", "audioclip"];
 
   // ---- 載入下載紀錄當來源 ----
   async function loadSources() {
@@ -77,6 +77,7 @@
     convert: "轉檔", compress: "壓縮", gif: "製作 GIF", thumb: "擷取縮圖",
     normalize: "音量正規化", vertical: "轉直式", rotate: "旋轉", speed: "變速",
     sheet: "產生九宮格", split: "章節切割", merge: "合併影片",
+    fade: "淡入淡出", vocal: "去人聲", audioclip: "擷取音訊片段",
   };
 
   go.addEventListener("click", () => {
@@ -114,9 +115,14 @@
       params.rate = sub.rate;
     } else if (op === "split") {
       params.segLen = $("#tbSegLen").value;
+    } else if (op === "fade") {
+      params.dur = $("#tbFadeDur").value;
+    } else if (op === "audioclip") {
+      params.start = $("#tbAcStart").value;
+      params.end = $("#tbAcEnd").value;
     }
 
-    startProgress(["compress", "vertical", "rotate", "speed"].includes(op));
+    startProgress(["compress", "vertical", "rotate", "speed", "fade"].includes(op));
     socket.emit("tool", { sourceId, op, params });
   });
 

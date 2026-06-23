@@ -464,12 +464,34 @@ io.on("connection", (socket) => {
 
     let outExt, args, fallbackArgs = null, label;
     if (op === "convert") {
-      const fmt = ["mp4", "mkv", "mp3", "wav"].includes(p.format) ? p.format : "mp4";
+      const fmt = ["mp4", "mkv", "mp3", "wav", "m4a", "flac", "opus"].includes(p.format) ? p.format : "mp4";
       outExt = fmt;
       label = "轉檔 " + fmt.toUpperCase();
       if (fmt === "mp3") args = ["-i", src, "-vn", "-c:a", "libmp3lame", "-q:a", "2"];
       else if (fmt === "wav") args = ["-i", src, "-vn", "-c:a", "pcm_s16le"];
+      else if (fmt === "m4a") args = ["-i", src, "-vn", "-c:a", "aac", "-b:a", "192k"];
+      else if (fmt === "flac") args = ["-i", src, "-vn", "-c:a", "flac"];
+      else if (fmt === "opus") args = ["-i", src, "-vn", "-c:a", "libopus", "-b:a", "160k"];
       else args = ["-i", src, "-c", "copy"];
+    } else if (op === "fade") {
+      outExt = "mp4";
+      label = "淡入淡出";
+      const d = Math.max(0.2, Math.min(10, parseFloat(p.dur) || 1));
+      const outSt = Math.max(0, (duration || d * 2) - d).toFixed(2);
+      const vf = `fade=t=in:st=0:d=${d},fade=t=out:st=${outSt}:d=${d}`;
+      const af = `afade=t=in:st=0:d=${d},afade=t=out:st=${outSt}:d=${d}`;
+      args = ["-i", src, "-vf", vf, "-af", af, "-c:v", "h264_nvenc", "-cq", "23", "-c:a", "aac", "-movflags", "+faststart"];
+      fallbackArgs = ["-y", "-i", src, "-vf", vf, "-af", af, "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart"];
+    } else if (op === "vocal") {
+      outExt = "mp4";
+      label = "去人聲";
+      args = ["-i", src, "-c:v", "copy", "-af", "pan=stereo|c0=c0-c1|c1=c1-c0", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"];
+    } else if (op === "audioclip") {
+      outExt = "mp3";
+      label = "音訊片段";
+      const ss = String(p.start || "0").trim() || "0";
+      const toArg = String(p.end || "").trim() ? ["-to", String(p.end).trim()] : [];
+      args = ["-ss", ss, ...toArg, "-i", src, "-vn", "-c:a", "libmp3lame", "-q:a", "2"];
     } else if (op === "compress") {
       outExt = "mp4";
       label = "壓縮";
