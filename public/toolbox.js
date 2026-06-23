@@ -5,7 +5,7 @@
   const sourceSel = $("#tbSource");
   let op = "convert";
   const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2" };
-  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed"];
+  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge"];
 
   // ---- 載入下載紀錄當來源 ----
   async function loadSources() {
@@ -15,15 +15,20 @@
       const vids = d.filter((x) => x.ext && /\.(mp4|mkv|webm|mov|avi|m4v)$/i.test(x.ext));
       if (!vids.length) {
         sourceSel.innerHTML = '<option value="">（尚無可處理的影片，請先到「影片下載」下載）</option>';
+        mergeList.innerHTML = '<p class="ts-hint" style="margin:0">尚無可合併的影片。</p>';
       } else {
         sourceSel.innerHTML = vids
           .map((x) => `<option value="${x.id}">${escAttr(x.title || x.filename)}</option>`)
+          .join("");
+        mergeList.innerHTML = vids
+          .map((x) => `<label class="merge-item"><input type="checkbox" value="${x.id}" /><span>${escAttr(x.title || x.filename)}</span></label>`)
           .join("");
       }
     } catch {
       sourceSel.innerHTML = '<option value="">（無法連線下載伺服器）</option>';
     }
   }
+  const mergeList = $("#tbMergeList");
   window.loadToolboxSources = loadSources;
   function escAttr(s) {
     return (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -40,6 +45,7 @@
       b.classList.add("active");
       op = b.dataset.op;
       ALL_OPS.forEach((o) => $("#tbp-" + o).classList.toggle("hidden", o !== op));
+      $("#tbSingleSource").classList.toggle("hidden", op === "merge");
     })
   );
 
@@ -70,10 +76,21 @@
   const opLabel = {
     convert: "轉檔", compress: "壓縮", gif: "製作 GIF", thumb: "擷取縮圖",
     normalize: "音量正規化", vertical: "轉直式", rotate: "旋轉", speed: "變速",
+    sheet: "產生九宮格", split: "章節切割", merge: "合併影片",
   };
 
   go.addEventListener("click", () => {
     err.classList.add("hidden");
+
+    // 合併：用勾選的多個來源
+    if (op === "merge") {
+      const ids = [...mergeList.querySelectorAll("input:checked")].map((c) => c.value);
+      if (ids.length < 2) return showErr("請至少勾選 2 支影片");
+      startProgress(true);
+      socket.emit("merge", { sourceIds: ids });
+      return;
+    }
+
     const sourceId = sourceSel.value;
     if (!sourceId) return showErr("請先選擇一個來源影片");
 
@@ -95,17 +112,21 @@
       params.dir = sub.dir;
     } else if (op === "speed") {
       params.rate = sub.rate;
+    } else if (op === "split") {
+      params.segLen = $("#tbSegLen").value;
     }
 
+    startProgress(["compress", "vertical", "rotate", "speed"].includes(op));
+    socket.emit("tool", { sourceId, op, params });
+  });
+
+  function startProgress(heavy) {
     go.disabled = true;
     result.classList.add("hidden");
     prog.classList.remove("hidden");
     bar.style.width = "5%";
-    const heavy = ["compress", "vertical", "rotate", "speed"].includes(op);
-    stage.textContent = opLabel[op] + "中…" + (heavy ? "（重新編碼，可能需要一些時間）" : "");
-
-    socket.emit("tool", { sourceId, op, params });
-  });
+    stage.textContent = (opLabel[op] || "處理") + "中…" + (heavy ? "（重新編碼，可能需要一些時間）" : "");
+  }
 
   socket.on("tool-progress", (d) => {
     bar.style.width = Math.max(5, d.percent || 0) + "%";
@@ -114,11 +135,14 @@
     go.disabled = false;
     prog.classList.add("hidden");
     $("#tbResultName").textContent = d.filename;
-    $("#tbDownload").href = d.downloadUrl;
+    // 多檔（章節切割）：不給單一下載鍵，導去下載紀錄
+    $("#tbDownload").classList.toggle("hidden", !!d.multi);
+    if (!d.multi) $("#tbDownload").href = d.downloadUrl;
     result.classList.remove("hidden");
     result.scrollIntoView({ behavior: "smooth", block: "center" });
-    window.toast("處理完成");
+    window.toast(d.multi ? `已產生 ${d.count} 段` : "處理完成");
     if (window.loadDownloads) window.loadDownloads();
+    loadSources();
   });
   socket.on("tool-error", (msg) => {
     go.disabled = false;

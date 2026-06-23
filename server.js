@@ -430,6 +430,37 @@ io.on("connection", (socket) => {
       const n = parseInt(v, 10);
       return isNaN(n) ? def : Math.max(lo, Math.min(hi, n));
     };
+    const duration = await ffprobeDuration(src);
+
+    // 特例：章節切割（輸出多段，各自進下載紀錄）
+    if (op === "split") {
+      const seg = clampInt(p.segLen, 3, 7200, 60);
+      const tmpl = path.join(DOWNLOAD_DIR, `${newId}_part_%03d.mp4`);
+      const proc = spawn(FFMPEG, ["-y", "-i", src, "-c", "copy", "-f", "segment",
+        "-segment_time", String(seg), "-reset_timestamps", "1", tmpl]);
+      proc.stderr.on("data", (c) => {
+        const t = parseFfmpegTime(c.toString());
+        if (t != null && duration > 0) socket.emit("tool-progress", { percent: Math.min(99, Math.round((t / duration) * 100)) });
+      });
+      proc.on("close", (code) => {
+        if (code !== 0) return socket.emit("tool-error", "切割失敗（ffmpeg 退出碼 " + code + "）");
+        const parts = fs.readdirSync(DOWNLOAD_DIR).filter((f) => f.startsWith(`${newId}_part_`)).sort();
+        if (!parts.length) return socket.emit("tool-error", "切割完成但找不到分段");
+        const items = parts.map((f, idx) => {
+          const id2 = `${newId}p${idx}`;
+          const fp = path.join(DOWNLOAD_DIR, f);
+          let size = 0;
+          try { size = fs.statSync(fp).size; } catch {}
+          const name = `${baseTitle}_第${String(idx + 1).padStart(2, "0")}段.mp4`;
+          downloadMeta[id2] = { filepath: fp, title: `${baseTitle} 第${idx + 1}段` };
+          recordDownload({ id: id2, title: `${baseTitle} 第${idx + 1}段`, filename: name, mode: "video", ext: ".mp4", size, ts: Date.now(), filepath: fp });
+          return { filename: name, downloadUrl: `/api/file/${id2}` };
+        });
+        socket.emit("tool-done", { multi: true, count: items.length, items, filename: `已切成 ${items.length} 段（已加入下載紀錄）` });
+      });
+      proc.on("error", (e) => socket.emit("tool-error", "無法啟動 ffmpeg：" + e.message));
+      return;
+    }
 
     let outExt, args, fallbackArgs = null, label;
     if (op === "convert") {
@@ -459,6 +490,11 @@ io.on("connection", (socket) => {
       outExt = "jpg";
       label = "縮圖";
       args = ["-ss", String(p.time || "0").trim() || "0", "-i", src, "-frames:v", "1", "-q:v", "2"];
+    } else if (op === "sheet") {
+      outExt = "jpg";
+      label = "九宮格預覽";
+      const rate = duration > 0 ? Math.max(0.05, 9 / duration) : 1;
+      args = ["-i", src, "-frames:v", "1", "-vf", `fps=${rate.toFixed(4)},scale=360:-1,tile=3x3`];
     } else if (op === "normalize") {
       outExt = "mp4";
       label = "音量正規化";
@@ -495,7 +531,6 @@ io.on("connection", (socket) => {
     const fullArgs = ["-y", ...args, outPath];
     if (fallbackArgs) fallbackArgs = [...fallbackArgs, outPath];
 
-    const duration = await ffprobeDuration(src);
     runFfmpeg(
       fullArgs,
       duration,
@@ -518,6 +553,51 @@ io.on("connection", (socket) => {
       },
       fallbackArgs
     );
+  });
+
+  // 影片合併：把多支下載的影片接成一支（統一解析度後 concat）
+  socket.on("merge", async (opts) => {
+    const ids = (opts && opts.sourceIds) || [];
+    if (!Array.isArray(ids) || ids.length < 2) {
+      socket.emit("tool-error", "請至少選擇 2 支影片");
+      return;
+    }
+    const srcs = ids.map((id) => downloadMeta[id]).filter((m) => m && fs.existsSync(m.filepath));
+    if (srcs.length < 2) {
+      socket.emit("tool-error", "找不到足夠的來源檔，請重新選擇");
+      return;
+    }
+    const newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const outPath = path.join(DOWNLOAD_DIR, `${newId}.mp4`);
+
+    const inputs = [];
+    srcs.forEach((m) => inputs.push("-i", m.filepath));
+    let filter = "";
+    srcs.forEach((_, i) => {
+      filter += `[${i}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:-1:-1,setsar=1[v${i}];`;
+    });
+    srcs.forEach((_, i) => (filter += `[v${i}][${i}:a]`));
+    filter += `concat=n=${srcs.length}:v=1:a=1[v][a]`;
+    const common = [...inputs, "-filter_complex", filter, "-map", "[v]", "-map", "[a]"];
+    const args = ["-y", ...common, "-c:v", "h264_nvenc", "-cq", "23", "-c:a", "aac", "-movflags", "+faststart", outPath];
+    const fallbackArgs = ["-y", ...common, "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-movflags", "+faststart", outPath];
+
+    let total = 0;
+    for (const m of srcs) total += await ffprobeDuration(m.filepath);
+
+    runFfmpeg(args, total, socket, () => {
+      if (!fs.existsSync(outPath)) {
+        socket.emit("tool-error", "合併完成但找不到輸出檔");
+        return;
+      }
+      const niceName = `合併影片 (${srcs.length}支).mp4`;
+      const title = `合併影片（${srcs.map((m) => m.title).join(" + ").slice(0, 60)}）`;
+      downloadMeta[newId] = { filepath: outPath, title };
+      let size = 0;
+      try { size = fs.statSync(outPath).size; } catch {}
+      recordDownload({ id: newId, title, filename: niceName, mode: "video", ext: ".mp4", size, ts: Date.now(), filepath: outPath });
+      socket.emit("tool-done", { id: newId, filename: niceName, downloadUrl: `/api/file/${newId}` });
+    }, fallbackArgs);
   });
 });
 

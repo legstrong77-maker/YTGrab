@@ -739,12 +739,14 @@
         <section class="card glass">
           <div class="card-glow"></div>
 
-          <div class="section-label">來源影片（從下載紀錄選）</div>
-          <div class="hist-toolbar">
-            <select id="tbSource" class="ts-input"></select>
-            <button type="button" class="btn btn-ghost ts-mini" id="tbRefresh">↻ 重新整理</button>
+          <div id="tbSingleSource">
+            <div class="section-label">來源影片（從下載紀錄選）</div>
+            <div class="hist-toolbar">
+              <select id="tbSource" class="ts-input"></select>
+              <button type="button" class="btn btn-ghost ts-mini" id="tbRefresh">↻ 重新整理</button>
+            </div>
+            <p class="ts-hint">先在「影片下載」下載影片，這裡就能直接拿來處理，不用重新上傳。</p>
           </div>
-          <p class="ts-hint">先在「影片下載」下載影片，這裡就能直接拿來處理，不用重新上傳。</p>
 
           <div class="section-label" style="margin-top:20px">要做什麼</div>
           <div class="bd-seg-group tb-ops" id="tbOps">
@@ -756,6 +758,9 @@
             <button class="bd-seg" data-op="vertical">📱 直式短影音</button>
             <button class="bd-seg" data-op="rotate">🔁 旋轉</button>
             <button class="bd-seg" data-op="speed">⏩ 變速</button>
+            <button class="bd-seg" data-op="sheet">🔳 九宮格</button>
+            <button class="bd-seg" data-op="split">✂️ 章節切割</button>
+            <button class="bd-seg" data-op="merge">🔗 合併多支</button>
           </div>
 
           <!-- 轉檔 -->
@@ -834,6 +839,24 @@
               <button class="bd-seg" data-rate="1.5">1.5×</button>
               <button class="bd-seg active" data-rate="2">2×（快轉）</button>
             </div>
+          </div>
+
+          <!-- 九宮格 -->
+          <div class="tb-params hidden" id="tbp-sheet">
+            <p class="ts-hint" style="margin:0">把整支影片濃縮成一張 3×3 預覽圖，快速掃過內容、找畫面很方便。</p>
+          </div>
+
+          <!-- 章節切割 -->
+          <div class="tb-params hidden" id="tbp-split">
+            <span class="tb-plabel">每段長度（秒）</span>
+            <input type="number" id="tbSegLen" class="ts-input clip-input" value="60" min="3" style="max-width:160px" />
+            <p class="ts-hint" style="margin-top:8px">會在最接近的關鍵影格切割（不重新編碼、很快）。每段自動加入下載紀錄。</p>
+          </div>
+
+          <!-- 合併多支 -->
+          <div class="tb-params hidden" id="tbp-merge">
+            <span class="tb-plabel">勾選要接在一起的影片（依清單由上到下的順序合併，統一成 1280×720）</span>
+            <div id="tbMergeList" class="merge-list"></div>
           </div>
 
           <button class="btn btn-download btn-glow" id="tbGo">

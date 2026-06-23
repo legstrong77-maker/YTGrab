@@ -270,6 +270,11 @@ select.ts-input option{background:#12121e;color:var(--text)}
 .tb-grid label{display:flex;flex-direction:column;gap:6px;font-size:.74rem;color:var(--text2);font-weight:600}
 .tb-grid .ts-input{font-family:var(--mono);text-align:center;padding:10px}
 @media(max-width:560px){.tb-grid{grid-template-columns:repeat(2,1fr)}}
+.merge-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;margin-top:4px}
+.merge-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,.02);cursor:pointer;font-size:.84rem;transition:.15s}
+.merge-item:hover{border-color:var(--accent2);background:rgba(var(--accent-rgb),.04)}
+.merge-item input{width:16px;height:16px;accent-color:var(--accent2);flex-shrink:0;cursor:pointer}
+.merge-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ===== Clip ===== */
 .clip-box{margin-top:18px;border:1px solid var(--card-border);border-radius:var(--radius-s);background:rgba(255,255,255,.02);overflow:hidden}
