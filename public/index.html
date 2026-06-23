@@ -557,6 +557,24 @@
           <div id="tsBatchList" class="ts-batch-list"></div>
         </section>
 
+        <!-- History -->
+        <details class="card glass hist-card" id="tsHistCard">
+          <summary class="bd-summary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            <span class="bd-summary-title">歷史紀錄</span>
+            <span class="bd-summary-hint" id="tsHistCount">點此展開過去做過的逐字稿</span>
+            <svg class="bd-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="bd-body">
+            <div class="hist-toolbar">
+              <input type="text" id="tsHistSearch" class="ts-input hist-search" placeholder="🔍 搜尋標題…" spellcheck="false" />
+              <button type="button" class="btn btn-ghost ts-mini" id="tsHistRefresh">↻ 重新整理</button>
+            </div>
+            <div id="tsHistList" class="ts-batch-list hist-list"></div>
+            <p class="hist-empty hidden" id="tsHistEmpty">目前還沒有歷史紀錄。完成第一個逐字稿後就會出現在這裡。</p>
+          </div>
+        </details>
+
         <!-- How it works (transcribe) -->
         <section class="how-it-works">
           <h2 class="section-heading">
@@ -597,6 +615,8 @@
         <p class="footer-sub">所有操作皆於本機執行；請只下載自己擁有、公開可用或已獲授權的內容</p>
       </footer>
     </main>
+
+    <div id="toastWrap" class="toast-wrap"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>

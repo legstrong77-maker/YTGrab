@@ -1,3 +1,18 @@
+// 全域 Toast 通知（其他腳本可呼叫 window.toast）
+window.toast = (msg, type = "ok") => {
+  const wrap = document.getElementById("toastWrap");
+  if (!wrap) return;
+  const t = document.createElement("div");
+  t.className = "toast toast-" + type;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("show"));
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, 2600);
+};
+
 (() => {
   const $ = (sel) => document.querySelector(sel);
   const socket = io();

@@ -31,7 +31,7 @@
     if (busy) return;
     const urls = urlsEl.value.split("\n").map((s) => s.trim()).filter(Boolean);
     if (!urls.length) {
-      alert("請先貼上至少一個網址");
+      window.toast("請先貼上至少一個網址", "err");
       return;
     }
     busy = true;
@@ -154,8 +154,9 @@
       if (!t) return;
       urlsEl.value = urlsEl.value && !urlsEl.value.endsWith("\n") ? urlsEl.value + "\n" + t : urlsEl.value + t;
       urlsEl.focus();
+      window.toast("已貼上");
     } catch {
-      alert("無法讀取剪貼簿，請直接用 Ctrl+V 貼上。");
+      window.toast("無法讀取剪貼簿，請用 Ctrl+V", "err");
     }
   });
 

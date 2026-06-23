@@ -247,6 +247,47 @@ def fetch_existing_subs(url: str, base: Path):
 # ---------------------------------------------------------------------------
 JOBS: dict[str, dict] = {}
 
+# ---------------------------------------------------------------------------
+# 歷史紀錄（持久化到 history.json，重開機後仍可瀏覽/下載）
+# ---------------------------------------------------------------------------
+HISTORY_FILE = WORK_DIR / "history.json"
+HISTORY_LOCK = threading.Lock()
+
+
+def load_history() -> list:
+    try:
+        return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def record_history(job_id: str, title: str, source: str, chars: int):
+    with HISTORY_LOCK:
+        hist = load_history()
+        hist = [r for r in hist if r.get("id") != job_id]   # 去重
+        hist.insert(0, {"id": job_id, "title": title or job_id,
+                        "source": source, "chars": chars, "ts": time.time()})
+        hist = hist[:500]                                    # 最多保留 500 筆
+        try:
+            HISTORY_FILE.write_text(json.dumps(hist, ensure_ascii=False),
+                                    encoding="utf-8")
+        except Exception:
+            pass
+
+
+def valid_id(job_id: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9]+", job_id or ""))
+
+
+def title_for(job_id: str) -> str:
+    j = JOBS.get(job_id)
+    if j and j.get("title"):
+        return j["title"]
+    for r in load_history():
+        if r.get("id") == job_id:
+            return r.get("title") or job_id
+    return job_id
+
 
 def process_job(job_id: str):
     job = JOBS[job_id]
@@ -266,6 +307,7 @@ def process_job(job_id: str):
                 (base.parent / f"{job_id}.srt").write_text(srt, encoding="utf-8")
                 job.update(stage="完成（現成字幕）", progress=1.0, state="done",
                            text=text, srt=srt, source="subs")
+                record_history(job_id, job["title"], "subs", len(text))
                 return
             job.update(stage="無現成字幕，改用 AI 辨識…", progress=0.0)
 
@@ -319,6 +361,7 @@ def process_job(job_id: str):
 
         job.update(stage="完成", progress=1.0, state="done",
                    text=full_text, srt=srt, source="asr")
+        record_history(job_id, job["title"], "asr", len(full_text))
     except Exception as e:
         job.update(state="error", error=str(e), stage="發生錯誤")
 
@@ -388,15 +431,12 @@ def status(job_id: str):
 
 @app.get("/api/download/{job_id}/{fmt}")
 def download(job_id: str, fmt: str):
-    job = JOBS.get(job_id)
-    if not job or job.get("state") != "done":
-        raise HTTPException(404, "尚未完成或不存在")
-    if fmt not in ("txt", "srt"):
-        raise HTTPException(400, "格式錯誤")
+    if fmt not in ("txt", "srt") or not valid_id(job_id):
+        raise HTTPException(400, "參數錯誤")
     path = WORK_DIR / f"{job_id}.{fmt}"
     if not path.exists():
         raise HTTPException(404, "檔案不存在")
-    safe = re.sub(r'[\\/:*?"<>|]', "_", job.get("title") or job_id)
+    safe = re.sub(r'[\\/:*?"<>|]', "_", title_for(job_id))
     return FileResponse(path, filename=f"{safe}.{fmt}",
                         media_type="text/plain; charset=utf-8")
 
@@ -415,10 +455,9 @@ def download_zip(ids: str, fmt: str = "txt"):
     count = 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for jid in job_ids:
-            job = JOBS.get(jid)
-            if not job or job.get("state") != "done":
+            if not valid_id(jid):
                 continue
-            safe = re.sub(r'[\\/:*?"<>|]', "_", job.get("title") or jid)
+            safe = re.sub(r'[\\/:*?"<>|]', "_", title_for(jid))
             for f in fmts:
                 p = WORK_DIR / f"{jid}.{f}"
                 if not p.exists():
@@ -439,6 +478,53 @@ def download_zip(ids: str, fmt: str = "txt"):
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="transcripts.zip"'},
     )
+
+
+@app.get("/api/history")
+def history():
+    """回傳歷史紀錄（最新在前），只列出檔案還在的項目。"""
+    out = []
+    for r in load_history():
+        if valid_id(r.get("id", "")) and (WORK_DIR / f"{r['id']}.txt").exists():
+            out.append(r)
+    return out
+
+
+@app.get("/api/result/{job_id}")
+def result(job_id: str):
+    """從磁碟讀回某次逐字稿的全文與字幕（供歷史重看，重開機後也行）。"""
+    if not valid_id(job_id):
+        raise HTTPException(400, "參數錯誤")
+    txt = WORK_DIR / f"{job_id}.txt"
+    srt = WORK_DIR / f"{job_id}.srt"
+    if not txt.exists():
+        raise HTTPException(404, "找不到逐字稿")
+    return {
+        "id": job_id,
+        "title": title_for(job_id),
+        "text": txt.read_text(encoding="utf-8", errors="replace"),
+        "srt": srt.read_text(encoding="utf-8", errors="replace") if srt.exists() else "",
+    }
+
+
+@app.delete("/api/result/{job_id}")
+def delete_result(job_id: str):
+    """從歷史與磁碟刪除某次逐字稿。"""
+    if not valid_id(job_id):
+        raise HTTPException(400, "參數錯誤")
+    for p in WORK_DIR.glob(f"{job_id}.*"):
+        try:
+            p.unlink()
+        except Exception:
+            pass
+    with HISTORY_LOCK:
+        hist = [r for r in load_history() if r.get("id") != job_id]
+        try:
+            HISTORY_FILE.write_text(json.dumps(hist, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+    JOBS.pop(job_id, None)
+    return {"ok": True}
 
 
 @app.get("/api/health")

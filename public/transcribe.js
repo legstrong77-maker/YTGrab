@@ -13,7 +13,10 @@
       Object.entries(views).forEach(([k, el]) =>
         el.classList.toggle("active", k === v)
       );
-      if (v === "transcribe") checkHealth();
+      if (v === "transcribe") {
+        checkHealth();
+        loadHistory();
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     })
   );
@@ -145,6 +148,8 @@
     go.disabled = false;
     batchLine.textContent = "";
     if (!doneJobIds.length) showErr("這批全部失敗了，請檢查網址或伺服器狀態。");
+    else window.toast(`完成 ${doneJobIds.length} 份逐字稿`);
+    loadHistory();
   });
 
   function submitJob(item) {
@@ -258,6 +263,7 @@
     mk("📋", () => {
       navigator.clipboard.writeText(ta.value);
       flash(row);
+      window.toast("已複製");
     });
     mk("⬇ .txt", () => downloadOne(jobId, "txt"));
     mk("⬇ .srt", () => downloadOne(jobId, "srt"));
@@ -347,6 +353,119 @@
       return "無法連線逐字稿伺服器，請確認已執行 啟動逐字稿.bat 並等待模型載入完成。";
     return msg || "發生未知錯誤";
   }
+
+  // ---- 歷史紀錄 ----
+  const histList = $("#tsHistList");
+  const histCount = $("#tsHistCount");
+  const histEmpty = $("#tsHistEmpty");
+  const histSearch = $("#tsHistSearch");
+  let histData = [];
+
+  async function loadHistory() {
+    try {
+      const r = await fetch(API + "/api/history", { cache: "no-store" });
+      histData = r.ok ? await r.json() : [];
+    } catch {
+      histData = [];
+    }
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const q = (histSearch.value || "").trim().toLowerCase();
+    const items = histData.filter((r) => !q || (r.title || "").toLowerCase().includes(q));
+    histCount.textContent = histData.length ? `${histData.length} 筆紀錄` : "尚無紀錄";
+    histEmpty.classList.toggle("hidden", histData.length > 0);
+    histList.innerHTML = "";
+    items.forEach((r) => histList.appendChild(makeHistRow(r)));
+  }
+
+  function makeHistRow(r) {
+    const row = document.createElement("div");
+    row.className = "ts-item hist-item";
+    const badge =
+      r.source === "subs"
+        ? '<span class="ts-item-status badge-subs">⚡ 現成字幕</span>'
+        : '<span class="ts-item-status badge-done">🎙 AI 辨識</span>';
+    row.innerHTML = `
+      <div class="ts-item-head">
+        ${badge}
+        <span class="ts-item-title"></span>
+        <span class="hist-meta"></span>
+        <div class="ts-item-actions"></div>
+      </div>
+      <textarea class="ts-item-text hidden" readonly></textarea>`;
+    row.querySelector(".ts-item-title").textContent = r.title || r.id;
+    row.querySelector(".hist-meta").textContent =
+      relTime(r.ts) + " · " + (r.chars || 0) + " 字";
+    const ta = row.querySelector(".ts-item-text");
+    const actions = row.querySelector(".ts-item-actions");
+    const mk = (label, fn) => {
+      const b = document.createElement("button");
+      b.className = "btn btn-ghost ts-mini";
+      b.textContent = label;
+      b.addEventListener("click", fn);
+      actions.appendChild(b);
+      return b;
+    };
+    async function ensureText() {
+      if (ta.value) return true;
+      try {
+        const res = await fetch(`${API}/api/result/${r.id}`);
+        ta.value = (await res.json()).text || "(空)";
+        return true;
+      } catch {
+        window.toast("讀取失敗", "err");
+        return false;
+      }
+    }
+    const viewBtn = mk("👁 重看", async () => {
+      if (!ta.classList.contains("hidden")) {
+        ta.classList.add("hidden");
+        viewBtn.textContent = "👁 重看";
+        return;
+      }
+      if (await ensureText()) {
+        ta.classList.remove("hidden");
+        viewBtn.textContent = "收合";
+      }
+    });
+    mk("📋", async () => {
+      if (await ensureText()) {
+        navigator.clipboard.writeText(ta.value);
+        window.toast("已複製逐字稿");
+      }
+    });
+    mk("⬇ .txt", () => downloadOne(r.id, "txt"));
+    mk("⬇ .srt", () => downloadOne(r.id, "srt"));
+    mk("🗑", async () => {
+      if (!confirm(`確定刪除「${r.title || r.id}」這筆逐字稿？`)) return;
+      try {
+        await fetch(`${API}/api/result/${r.id}`, { method: "DELETE" });
+        histData = histData.filter((x) => x.id !== r.id);
+        renderHistory();
+        window.toast("已刪除");
+      } catch {
+        window.toast("刪除失敗", "err");
+      }
+    });
+    return row;
+  }
+
+  function relTime(ts) {
+    if (!ts) return "";
+    const s = Math.floor(Date.now() / 1000 - ts);
+    if (s < 60) return "剛剛";
+    if (s < 3600) return Math.floor(s / 60) + " 分鐘前";
+    if (s < 86400) return Math.floor(s / 3600) + " 小時前";
+    return Math.floor(s / 86400) + " 天前";
+  }
+
+  histSearch.addEventListener("input", renderHistory);
+  $("#tsHistRefresh").addEventListener("click", () => {
+    loadHistory();
+    window.toast("已重新整理");
+  });
 
   // ---- 貼上剪貼簿 ----
   $("#tsPaste").addEventListener("click", async () => {
