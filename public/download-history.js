@@ -85,6 +85,14 @@
     load();
     window.toast("已重新整理");
   });
+  $("#dlOpenFolder").addEventListener("click", async () => {
+    try {
+      await fetch("/api/open-folder", { method: "POST" });
+      window.toast("已開啟下載資料夾");
+    } catch {
+      window.toast("開啟失敗", "err");
+    }
+  });
   $("#dlHistClear").addEventListener("click", async () => {
     if (!data.length) return;
     if (!confirm("清空所有下載紀錄？（會一併刪除這些檔案）")) return;

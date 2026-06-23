@@ -277,6 +277,10 @@ select.ts-input option{background:#12121e;color:var(--text)}
 .merge-item:hover{border-color:var(--accent2);background:rgba(var(--accent-rgb),.04)}
 .merge-item input{width:16px;height:16px;accent-color:var(--accent2);flex-shrink:0;cursor:pointer}
 .merge-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-info{margin-top:10px;padding:14px 16px;background:rgba(0,0,0,.25);border:1px solid var(--card-border);border-radius:var(--radius-s);font-size:.82rem;color:var(--text)}
+.tb-info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.tb-info-grid div{display:flex;flex-direction:column;gap:3px}
+.tb-info-grid b{font-size:.66rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 
 /* ===== Clip ===== */
 .clip-box{margin-top:18px;border:1px solid var(--card-border);border-radius:var(--radius-s);background:rgba(255,255,255,.02);overflow:hidden}

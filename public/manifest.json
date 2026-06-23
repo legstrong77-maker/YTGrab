@@ -1,0 +1,12 @@
+{
+  "name": "YTGrab 影音工作台",
+  "short_name": "YTGrab",
+  "description": "本機影音下載、逐字稿、字幕與後製工作台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#06060e",
+  "theme_color": "#06060e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -4,8 +4,8 @@
 
   const sourceSel = $("#tbSource");
   let op = "convert";
-  const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2" };
-  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge", "fade", "vocal", "audioclip"];
+  const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2", pos: "bottom", color: "white" };
+  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge", "fade", "vocal", "audioclip", "watermark"];
 
   // ---- 載入下載紀錄當來源 ----
   async function loadSources() {
@@ -56,6 +56,8 @@
   segGroup("#tbFit", "fit", (v) => (sub.fit = v));
   segGroup("#tbDir", "dir", (v) => (sub.dir = v));
   segGroup("#tbRate", "rate", (v) => (sub.rate = v));
+  segGroup("#tbWmPos", "pos", (v) => (sub.pos = v));
+  segGroup("#tbWmColor", "color", (v) => (sub.color = v));
   function segGroup(sel, attr, set) {
     document.querySelectorAll(sel + " .bd-seg").forEach((b) =>
       b.addEventListener("click", () => {
@@ -77,8 +79,45 @@
     convert: "轉檔", compress: "壓縮", gif: "製作 GIF", thumb: "擷取縮圖",
     normalize: "音量正規化", vertical: "轉直式", rotate: "旋轉", speed: "變速",
     sheet: "產生九宮格", split: "章節切割", merge: "合併影片",
-    fade: "淡入淡出", vocal: "去人聲", audioclip: "擷取音訊片段",
+    fade: "淡入淡出", vocal: "去人聲", audioclip: "擷取音訊片段", watermark: "加浮水印",
   };
+
+  // ---- 影片資訊（ffprobe）----
+  $("#tbProbe").addEventListener("click", async () => {
+    const id = sourceSel.value;
+    const info = $("#tbInfo");
+    if (!id) return showErr("請先選擇一個來源影片");
+    info.classList.remove("hidden");
+    info.innerHTML = "讀取中…";
+    try {
+      const r = await fetch("/api/probe/" + id, { cache: "no-store" });
+      const d = await r.json();
+      if (!r.ok) throw 0;
+      const v = (d.streams || []).find((s) => s.codec_type === "video") || {};
+      const a = (d.streams || []).find((s) => s.codec_type === "audio") || {};
+      const f = d.format || {};
+      const dur = f.duration ? fmtDur(parseFloat(f.duration)) : "?";
+      const mb = f.size ? (f.size / 1048576).toFixed(1) + " MB" : "?";
+      const br = f.bit_rate ? Math.round(f.bit_rate / 1000) + " kbps" : "?";
+      const fps = v.r_frame_rate ? (eval(v.r_frame_rate) || 0).toFixed(0) : "?";
+      info.innerHTML = `
+        <div class="tb-info-grid">
+          <div><b>解析度</b>${v.width || "?"}×${v.height || "?"}</div>
+          <div><b>影像編碼</b>${v.codec_name || "—"}</div>
+          <div><b>FPS</b>${fps}</div>
+          <div><b>時長</b>${dur}</div>
+          <div><b>音訊</b>${a.codec_name || "無"}${a.channels ? " · " + a.channels + "ch" : ""}</div>
+          <div><b>總位元率</b>${br}</div>
+          <div><b>檔案大小</b>${mb}</div>
+        </div>`;
+    } catch {
+      info.innerHTML = '<span style="color:#ff9bb4">讀取資訊失敗</span>';
+    }
+  });
+  function fmtDur(s) {
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.floor(s % 60);
+    return (h ? h + ":" : "") + String(m).padStart(h ? 2 : 1, "0") + ":" + String(x).padStart(2, "0");
+  }
 
   go.addEventListener("click", () => {
     err.classList.add("hidden");
@@ -120,9 +159,16 @@
     } else if (op === "audioclip") {
       params.start = $("#tbAcStart").value;
       params.end = $("#tbAcEnd").value;
+    } else if (op === "watermark") {
+      const text = $("#tbWmText").value.trim();
+      if (!text) return showErr("請先輸入浮水印文字");
+      params.text = text;
+      params.pos = sub.pos;
+      params.color = sub.color;
+      params.size = $("#tbWmSize").value;
     }
 
-    startProgress(["compress", "vertical", "rotate", "speed", "fade"].includes(op));
+    startProgress(["compress", "vertical", "rotate", "speed", "fade", "watermark"].includes(op));
     socket.emit("tool", { sourceId, op, params });
   });
 

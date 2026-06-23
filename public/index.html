@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>YTGrab — 多平台影片下載器</title>
     <meta name="description" content="支援 YouTube、Facebook Reels、Instagram Reels 的本機影片下載工具" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#06060e" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="YTGrab" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -356,6 +362,7 @@
         <div class="bd-body">
           <div class="hist-toolbar">
             <input type="text" id="dlHistSearch" class="ts-input hist-search" placeholder="🔍 搜尋檔名…" spellcheck="false" />
+            <button type="button" class="btn btn-ghost ts-mini" id="dlOpenFolder">📂 開啟資料夾</button>
             <button type="button" class="btn btn-ghost ts-mini" id="dlHistRefresh">↻ 重新整理</button>
             <button type="button" class="btn btn-ghost ts-mini" id="dlHistClear">🗑 清空</button>
           </div>
@@ -743,8 +750,10 @@
             <div class="section-label">來源影片（從下載紀錄選）</div>
             <div class="hist-toolbar">
               <select id="tbSource" class="ts-input"></select>
+              <button type="button" class="btn btn-ghost ts-mini" id="tbProbe">ℹ️ 資訊</button>
               <button type="button" class="btn btn-ghost ts-mini" id="tbRefresh">↻ 重新整理</button>
             </div>
+            <div id="tbInfo" class="tb-info hidden"></div>
             <p class="ts-hint">先在「影片下載」下載影片，這裡就能直接拿來處理，不用重新上傳。</p>
           </div>
 
@@ -764,6 +773,7 @@
             <button class="bd-seg" data-op="fade">🎚 淡入淡出</button>
             <button class="bd-seg" data-op="vocal">🎤 去人聲</button>
             <button class="bd-seg" data-op="audioclip">🎵 音訊片段</button>
+            <button class="bd-seg" data-op="watermark">🏷 浮水印</button>
           </div>
 
           <!-- 轉檔 -->
@@ -887,6 +897,31 @@
             </div>
           </div>
 
+          <!-- 浮水印 -->
+          <div class="tb-params hidden" id="tbp-watermark">
+            <span class="tb-plabel">浮水印文字</span>
+            <input type="text" id="tbWmText" class="ts-input" placeholder="例：@我的頻道" maxlength="200" />
+            <span class="tb-plabel">位置</span>
+            <div class="bd-seg-group" id="tbWmPos">
+              <button class="bd-seg" data-pos="tl">左上</button>
+              <button class="bd-seg" data-pos="tr">右上</button>
+              <button class="bd-seg" data-pos="bl">左下</button>
+              <button class="bd-seg" data-pos="br">右下</button>
+              <button class="bd-seg active" data-pos="bottom">底部置中</button>
+              <button class="bd-seg" data-pos="center">正中</button>
+            </div>
+            <span class="tb-plabel">字級與顏色</span>
+            <div class="clip-row" style="padding:0">
+              <input type="number" id="tbWmSize" class="ts-input clip-input" value="32" min="10" max="200" style="max-width:120px" />
+              <div class="bd-seg-group" id="tbWmColor">
+                <button class="bd-seg active" data-color="white">白</button>
+                <button class="bd-seg" data-color="black">黑</button>
+                <button class="bd-seg" data-color="yellow">黃</button>
+                <button class="bd-seg" data-color="red">紅</button>
+              </div>
+            </div>
+          </div>
+
           <button class="btn btn-download btn-glow" id="tbGo">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.6 5.3l-6.4 6.4a1.4 1.4 0 0 0 2 2l6.4-6.4a4 4 0 0 0 5.3-5.6l-2.4 2.4-2-2 2.7-2.1z"/></svg>
             <span>開始處理</span>
@@ -938,5 +973,10 @@
     <script src="burn.js"></script>
     <script src="toolbox.js"></script>
     <script src="transcribe.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+      }
+    </script>
   </body>
 </html>

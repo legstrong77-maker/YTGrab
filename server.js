@@ -16,6 +16,8 @@ if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR);
 const FFMPEG_DIR = String.raw`C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin`;
 const FFMPEG = path.join(FFMPEG_DIR, "ffmpeg.exe");
 const FFPROBE = path.join(FFMPEG_DIR, "ffprobe.exe");
+// drawtext 用字型（微軟正黑，支援中文）；路徑在 filter 內需跳脫冒號
+const FONT = "C\\:/Windows/Fonts/msjh.ttc";
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -40,8 +42,8 @@ function parseFfmpegTime(line) {
   if (!m) return null;
   return +m[1] * 3600 + +m[2] * 60 + parseFloat(m[3]);
 }
-function runFfmpeg(args, duration, socket, onDone, fallbackArgs) {
-  const proc = spawn(FFMPEG, args);
+function runFfmpeg(args, duration, socket, onDone, fallbackArgs, cwd) {
+  const proc = spawn(FFMPEG, args, cwd ? { cwd } : undefined);
   proc.stderr.on("data", (c) => {
     const t = parseFfmpegTime(c.toString());
     if (t != null && duration > 0) {
@@ -50,7 +52,7 @@ function runFfmpeg(args, duration, socket, onDone, fallbackArgs) {
   });
   proc.on("close", (code) => {
     if (code === 0) return onDone();
-    if (fallbackArgs) return runFfmpeg(fallbackArgs, duration, socket, onDone);
+    if (fallbackArgs) return runFfmpeg(fallbackArgs, duration, socket, onDone, null, cwd);
     socket.emit("tool-error", "處理失敗（ffmpeg 退出碼 " + code + "）");
   });
   proc.on("error", (e) => socket.emit("tool-error", "無法啟動 ffmpeg：" + e.message));
@@ -253,6 +255,31 @@ app.get("/api/info", async (req, res) => {
       res.status(500).json({ error: "解析影片資訊失敗", platform });
     }
   });
+});
+
+// 影片資訊（ffprobe）
+app.get("/api/probe/:id", (req, res) => {
+  const meta = downloadMeta[req.params.id];
+  if (!meta || !fs.existsSync(meta.filepath)) return res.status(404).json({ error: "找不到檔案" });
+  const pr = spawn(FFPROBE, ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", meta.filepath]);
+  let o = "";
+  pr.stdout.on("data", (c) => (o += c.toString()));
+  pr.on("close", () => {
+    try {
+      res.json(JSON.parse(o));
+    } catch {
+      res.status(500).json({ error: "解析失敗" });
+    }
+  });
+  pr.on("error", () => res.status(500).json({ error: "無法執行 ffprobe" }));
+});
+
+// 在檔案總管開啟下載資料夾
+app.post("/api/open-folder", (req, res) => {
+  try {
+    spawn("explorer.exe", [DOWNLOAD_DIR]);
+  } catch {}
+  res.json({ ok: true });
 });
 
 // 展開播放清單 → 回傳裡面每支影片的網址與標題
@@ -462,7 +489,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    let outExt, args, fallbackArgs = null, label;
+    let outExt, args, fallbackArgs = null, label, cwd;
     if (op === "convert") {
       const fmt = ["mp4", "mkv", "mp3", "wav", "m4a", "flac", "opus"].includes(p.format) ? p.format : "mp4";
       outExt = fmt;
@@ -492,6 +519,26 @@ io.on("connection", (socket) => {
       const ss = String(p.start || "0").trim() || "0";
       const toArg = String(p.end || "").trim() ? ["-to", String(p.end).trim()] : [];
       args = ["-ss", ss, ...toArg, "-i", src, "-vn", "-c:a", "libmp3lame", "-q:a", "2"];
+    } else if (op === "watermark") {
+      outExt = "mp4";
+      label = "浮水印";
+      const text = String(p.text || "").trim().slice(0, 200);
+      if (!text) {
+        socket.emit("tool-error", "請先輸入浮水印文字");
+        return;
+      }
+      // 文字寫到檔案、用相對 textfile 引用（避開 Windows 路徑跳脫），cwd 設為 downloads
+      fs.writeFileSync(path.join(DOWNLOAD_DIR, `${newId}.wm.txt`), text, "utf-8");
+      cwd = DOWNLOAD_DIR;
+      const fs2 = clampInt(p.size, 10, 200, 32);
+      const pos = {
+        tl: "x=24:y=24", tr: "x=w-tw-24:y=24", bl: "x=24:y=h-th-24",
+        br: "x=w-tw-24:y=h-th-24", center: "x=(w-tw)/2:y=(h-th)/2", bottom: "x=(w-tw)/2:y=h-th-30",
+      }[p.pos] || "x=(w-tw)/2:y=h-th-30";
+      const color = { white: "white", black: "black", yellow: "yellow", red: "red" }[p.color] || "white";
+      const vf = `drawtext=fontfile='${FONT}':textfile=${newId}.wm.txt:${pos}:fontsize=${fs2}:fontcolor=${color}@0.9:box=1:boxcolor=black@0.4:boxborderw=8`;
+      args = ["-i", src, "-vf", vf, "-c:v", "h264_nvenc", "-cq", "23", "-c:a", "copy", "-movflags", "+faststart"];
+      fallbackArgs = ["-y", "-i", src, "-vf", vf, "-c:v", "libx264", "-crf", "20", "-c:a", "copy", "-movflags", "+faststart"];
     } else if (op === "compress") {
       outExt = "mp4";
       label = "壓縮";
@@ -573,7 +620,8 @@ io.on("connection", (socket) => {
         });
         socket.emit("tool-done", { id: newId, filename: niceName, downloadUrl: `/api/file/${newId}` });
       },
-      fallbackArgs
+      fallbackArgs,
+      cwd
     );
   });
 
