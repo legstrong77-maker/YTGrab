@@ -20,9 +20,14 @@
 2. **[Python 3](https://www.python.org/)** (yt-dlp 需要)
 3. **yt-dlp**: 影片下載核心引擎
    ```bash
-   pip install yt-dlp
+   pip install -U yt-dlp
    ```
 4. **FFmpeg**: 影音合併與轉碼工具。必須安裝並加入系統環境變數 (PATH)，或在 `server.js` 中指定其路徑。
+5. **[Deno](https://deno.land/)** (JS runtime)：新版 yt-dlp 解析 YouTube 需要 JavaScript runtime，沒有的話某些畫質會抓不到、且擷取方式已被官方標為棄用。
+   ```bash
+   winget install DenoLand.Deno
+   ```
+   啟動器（`啟動全部.bat` / `背景啟動.vbs`）已把 deno 路徑加進 PATH。
 
 ## 🚀 快速開始
 

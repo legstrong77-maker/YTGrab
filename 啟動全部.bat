@@ -3,6 +3,9 @@ chcp 65001 >nul
 cd /d "%~dp0"
 title YTGrab 一鍵啟動
 
+REM 讓 yt-dlp 找得到 deno（新版 yt-dlp 解析 YouTube 需要 JS runtime）
+set "PATH=C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\DenoLand.Deno_Microsoft.Winget.Source_8wekyb3d8bbwe;%PATH%"
+
 echo ============================================
 echo   YTGrab 影音工作台 - 一鍵啟動
 echo ============================================
