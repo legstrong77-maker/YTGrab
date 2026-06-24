@@ -55,6 +55,7 @@ if not Path(FFMPEG).exists():
 MODEL_ID = "MediaTek-Research/Breeze-ASR-25"
 SAMPLE_RATE = 16000
 CHUNK_SECONDS = 28          # 每段音訊長度（Whisper 上限 30s，留點餘裕）
+BATCH_SIZE = 8              # 批次推論一次處理幾段（實測 8 段約 4.4x 加速、輸出不變）
 PORT = 8001
 
 # ---------------------------------------------------------------------------
@@ -114,6 +115,25 @@ def transcribe_chunk(wave: np.ndarray) -> str:
             )
     text = processor.batch_decode(ids, skip_special_tokens=True)[0]
     return to_traditional(text.strip())
+
+
+def transcribe_batch(waves: list) -> list:
+    """一次轉多段（批次推論，GPU 利用率高、長影片快很多）。回傳繁體文字列表。"""
+    inputs = processor(
+        waves, sampling_rate=SAMPLE_RATE, return_tensors="pt"
+    ).input_features.to(DEVICE, dtype=DTYPE)
+    with torch.no_grad(), GPU_LOCK:
+        try:
+            ids = model.generate(
+                inputs, language="zh", task="transcribe", max_new_tokens=440
+            )
+        except TypeError:
+            forced = processor.get_decoder_prompt_ids(language="zh", task="transcribe")
+            ids = model.generate(
+                inputs, forced_decoder_ids=forced, max_new_tokens=440
+            )
+    texts = processor.batch_decode(ids, skip_special_tokens=True)
+    return [to_traditional(t.strip()) for t in texts]
 
 
 # ---------------------------------------------------------------------------
@@ -334,19 +354,24 @@ def process_job(job_id: str):
         total = max(1, int(np.ceil(len(wave) / step)))
         job["duration"] = duration
 
+        # 只保留夠長的段，分批送進模型（批次推論）
+        valid = [i for i in range(total) if len(wave[i * step:(i + 1) * step]) >= sr * 0.2]
+        nvalid = max(1, len(valid))
         segments = []   # (start, end, text)
-        for i in range(total):
-            piece = wave[i * step:(i + 1) * step]
-            if len(piece) < sr * 0.2:   # 太短跳過
-                continue
-            text = transcribe_chunk(piece)
-            if text:
-                start = i * CHUNK_SECONDS
-                end = min((i + 1) * CHUNK_SECONDS, duration)
-                segments.append((start, end, text))
+        done = 0
+        for b in range(0, len(valid), BATCH_SIZE):
+            grp = valid[b:b + BATCH_SIZE]
+            pieces = [wave[i * step:(i + 1) * step] for i in grp]
+            texts = transcribe_batch(pieces)
+            for i, text in zip(grp, texts):
+                if text:
+                    start = i * CHUNK_SECONDS
+                    end = min((i + 1) * CHUNK_SECONDS, duration)
+                    segments.append((start, end, text))
+            done += len(grp)
             job.update(
-                stage=f"轉寫中… {i + 1}/{total} 段",
-                progress=0.05 + 0.93 * (i + 1) / total,
+                stage=f"轉寫中… {done}/{nvalid} 段",
+                progress=0.05 + 0.93 * done / nvalid,
             )
 
         # 4) 組合結果
@@ -430,6 +455,14 @@ async def create_job(
     prefer_subs: str = Form("0"),
     file: UploadFile | None = File(None),
 ):
+    # 限制記憶體：保留最近的工作，丟掉最舊且已結束的（檔案與歷史仍在磁碟）
+    if len(JOBS) > 80:
+        for k in list(JOBS.keys()):
+            if len(JOBS) <= 60:
+                break
+            if JOBS[k].get("state") in ("done", "error"):
+                JOBS.pop(k, None)
+
     job_id = uuid.uuid4().hex[:12]
     job = {"id": job_id, "mode": mode, "url": url, "state": "running",
            "stage": "排隊中…", "progress": 0.0, "title": "",

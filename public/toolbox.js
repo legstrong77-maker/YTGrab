@@ -99,7 +99,11 @@
       const dur = f.duration ? fmtDur(parseFloat(f.duration)) : "?";
       const mb = f.size ? (f.size / 1048576).toFixed(1) + " MB" : "?";
       const br = f.bit_rate ? Math.round(f.bit_rate / 1000) + " kbps" : "?";
-      const fps = v.r_frame_rate ? (eval(v.r_frame_rate) || 0).toFixed(0) : "?";
+      let fps = "?";
+      if (v.r_frame_rate) {
+        const [n, d] = v.r_frame_rate.split("/").map(Number);
+        fps = (d ? n / d : n || 0).toFixed(0);
+      }
       info.innerHTML = `
         <div class="tb-info-grid">
           <div><b>解析度</b>${v.width || "?"}×${v.height || "?"}</div>
