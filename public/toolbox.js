@@ -4,8 +4,8 @@
 
   const sourceSel = $("#tbSource");
   let op = "convert";
-  const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2", pos: "bottom", color: "white" };
-  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge", "fade", "vocal", "audioclip", "watermark"];
+  const sub = { format: "mp4", quality: "medium", scale: "keep", fit: "blur", dir: "cw", rate: "2", pos: "bottom", color: "white", shortFit: "blur" };
+  const ALL_OPS = ["convert", "compress", "gif", "thumb", "normalize", "vertical", "rotate", "speed", "sheet", "split", "merge", "fade", "vocal", "audioclip", "watermark", "short"];
 
   // ---- 載入下載紀錄當來源 ----
   async function loadSources() {
@@ -23,6 +23,13 @@
         mergeList.innerHTML = vids
           .map((x) => `<label class="merge-item"><input type="checkbox" value="${x.id}" /><span>${escAttr(x.title || x.filename)}</span></label>`)
           .join("");
+      }
+      // 自動短影音的配樂下拉：列出下載過的音檔
+      const auds = d.filter((x) => x.ext && /\.(mp3|m4a|wav|opus|flac|aac)$/i.test(x.ext));
+      const bgmSel = $("#tbShortBgm");
+      if (bgmSel) {
+        bgmSel.innerHTML = '<option value="">（不配樂）</option>' +
+          auds.map((x) => `<option value="${x.id}">${escAttr(x.title || x.filename)}</option>`).join("");
       }
     } catch {
       sourceSel.innerHTML = '<option value="">（無法連線下載伺服器）</option>';
@@ -58,6 +65,7 @@
   segGroup("#tbRate", "rate", (v) => (sub.rate = v));
   segGroup("#tbWmPos", "pos", (v) => (sub.pos = v));
   segGroup("#tbWmColor", "color", (v) => (sub.color = v));
+  segGroup("#tbShortFit", "fit", (v) => (sub.shortFit = v));
   function segGroup(sel, attr, set) {
     document.querySelectorAll(sel + " .bd-seg").forEach((b) =>
       b.addEventListener("click", () => {
@@ -80,6 +88,7 @@
     normalize: "音量正規化", vertical: "轉直式", rotate: "旋轉", speed: "變速",
     sheet: "產生九宮格", split: "章節切割", merge: "合併影片",
     fade: "淡入淡出", vocal: "去人聲", audioclip: "擷取音訊片段", watermark: "加浮水印",
+    short: "自動短影音",
   };
 
   // ---- 影片資訊（ffprobe）----
@@ -125,6 +134,7 @@
 
   go.addEventListener("click", () => {
     err.classList.add("hidden");
+    window.notifyAsk();
 
     // 合併：用勾選的多個來源
     if (op === "merge") {
@@ -137,6 +147,18 @@
 
     const sourceId = sourceSel.value;
     if (!sourceId) return showErr("請先選擇一個來源影片");
+
+    // 自動短影音：來源影片 + 配樂 + 字幕 → 直式短影音
+    if (op === "short") {
+      startProgress(true);
+      socket.emit("shortmaker", {
+        sourceId,
+        bgmId: $("#tbShortBgm").value,
+        caption: $("#tbShortCap").value,
+        fit: sub.shortFit,
+      });
+      return;
+    }
 
     const params = {};
     if (op === "convert") params.format = sub.format;
@@ -197,6 +219,7 @@
     result.classList.remove("hidden");
     result.scrollIntoView({ behavior: "smooth", block: "center" });
     window.toast(d.multi ? `已產生 ${d.count} 段` : "處理完成");
+    window.notify("影片工具完成", d.filename || "");
     if (window.loadDownloads) window.loadDownloads();
     loadSources();
   });

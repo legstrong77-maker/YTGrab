@@ -806,6 +806,7 @@
             <button class="bd-seg" data-op="vocal">🎤 去人聲</button>
             <button class="bd-seg" data-op="audioclip">🎵 音訊片段</button>
             <button class="bd-seg" data-op="watermark">🏷 浮水印</button>
+            <button class="bd-seg" data-op="short">🎬 自動短影音</button>
           </div>
 
           <!-- 轉檔 -->
@@ -927,6 +928,20 @@
               <span class="clip-arrow">→</span>
               <input type="text" id="tbAcEnd" class="ts-input clip-input" placeholder="結束 1:45" />
             </div>
+          </div>
+
+          <!-- 自動短影音 -->
+          <div class="tb-params hidden" id="tbp-short">
+            <span class="tb-plabel">配樂（從你下載過的音樂挑，選填）</span>
+            <select id="tbShortBgm" class="ts-input"></select>
+            <span class="tb-plabel">大字幕（選填）</span>
+            <input type="text" id="tbShortCap" class="ts-input" placeholder="例：這家也太好吃了" maxlength="60" />
+            <span class="tb-plabel">填充方式</span>
+            <div class="bd-seg-group" id="tbShortFit">
+              <button class="bd-seg active" data-fit="blur">模糊背景</button>
+              <button class="bd-seg" data-fit="crop">裁切置中</button>
+            </div>
+            <p class="ts-hint" style="margin-top:8px">橫式影片 → 直式 9:16 短影音。配樂會自動抓歌曲最精彩的段落、壓平忽大忽小、淡入淡出（技術參考開源 video-autopilot-kit）。</p>
           </div>
 
           <!-- 浮水印 -->

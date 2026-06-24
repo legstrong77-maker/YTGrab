@@ -119,6 +119,62 @@ function buildBaseArgs() {
   ];
 }
 
+// ── 自動短影音 helpers（技術參考 video-autopilot-kit / MIT，重寫為 Node）──
+// BGM 高光偵測：用 ebur128 短期響度找最 energetic 的 dur 秒窗（Shorts 不從前奏播）
+function findMusicHighlight(bgm, dur) {
+  return new Promise((resolve) => {
+    const pr = spawn(FFMPEG, ["-hide_banner", "-i", bgm, "-af", "ebur128", "-f", "null", "-"]);
+    let err = "";
+    pr.stderr.on("data", (c) => (err += c.toString()));
+    pr.on("close", () => {
+      const pts = [];
+      for (const line of err.split("\n")) {
+        const mt = line.match(/t:\s*([\d.]+)/);
+        const ms = line.match(/S:\s*(-?[\d.]+|-?inf)/);
+        if (mt && ms) pts.push([parseFloat(mt[1]), ms[1].includes("inf") ? -120 : parseFloat(ms[1])]);
+      }
+      if (pts.length < 5) return resolve(0);
+      const total = pts[pts.length - 1][0];
+      if (total <= dur + 0.5) return resolve(0);
+      let bestT = 0, bestE = -1e9;
+      for (let i = 0; i < pts.length; i++) {
+        const t0 = pts[i][0];
+        if (t0 + dur > total + 0.01) break;
+        let sum = 0, n = 0;
+        for (let j = i; j < pts.length && pts[j][0] <= t0 + dur; j++) { sum += pts[j][1]; n++; }
+        if (n && sum / n > bestE) { bestE = sum / n; bestT = t0; }
+      }
+      resolve(Math.max(0, Math.round(bestT * 100) / 100));
+    });
+    pr.on("error", () => resolve(0));
+  });
+}
+// 跑單一 ffmpeg 步驟（Promise + 可取消）
+function ffmpegStep(args, socket, cwd) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(FFMPEG, args, cwd ? { cwd } : undefined);
+    socket.activeProc = proc;
+    let err = "";
+    proc.stderr.on("data", (c) => (err += c.toString().slice(-300)));
+    proc.on("close", (code) => {
+      socket.activeProc = null;
+      if (socket.cancelled) { socket.cancelled = false; return reject({ cancelled: true }); }
+      code === 0 ? resolve() : reject(new Error(err.slice(-300)));
+    });
+    proc.on("error", (e) => reject(e));
+  });
+}
+// 產生置中大字幕 ASS（單行白字＋黑邊，微軟正黑）
+function writeShortAss(text, assPath) {
+  const safe = String(text || "").replace(/[{}\\]/g, "").replace(/[\r\n]+/g, "\\N").slice(0, 120);
+  const ass = "[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\n\n" +
+    "[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n" +
+    "Style: MAIN,Microsoft JhengHei,104,&H00FFFFFF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,10,4,5,40,40,0,1\n\n" +
+    "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n" +
+    "Dialogue: 0,0:00:00.00,9:59:59.00,MAIN,,0,0,0,,{\\an5\\pos(540,1180)}" + safe + "\n";
+  fs.writeFileSync(assPath, ass, "utf-8");
+}
+
 // 從瀏覽器讀 cookies（下載私人 / 需登入內容用）
 const VALID_BROWSERS = ["chrome", "edge", "firefox", "brave", "opera", "vivaldi", "chromium"];
 function cookieArgs(browser) {
@@ -729,6 +785,74 @@ io.on("connection", (socket) => {
       recordDownload({ id: newId, title, filename: niceName, mode: "video", ext: ".mp4", size, ts: Date.now(), filepath: outPath });
       socket.emit("tool-done", { id: newId, filename: niceName, downloadUrl: `/api/file/${newId}` });
     }, fallbackArgs);
+  });
+
+  // 自動短影音：來源影片 → 直式 9:16 + 大字幕 + 智慧配樂（BGM 從下載過的音樂挑）
+  socket.on("shortmaker", async (opts) => {
+    const { sourceId, bgmId, caption, fit } = opts || {};
+    const meta = downloadMeta[sourceId];
+    if (!meta || !fs.existsSync(meta.filepath)) {
+      socket.emit("tool-error", "找不到來源影片，請重新選擇");
+      return;
+    }
+    const bgmMeta = bgmId && downloadMeta[bgmId] && fs.existsSync(downloadMeta[bgmId].filepath) ? downloadMeta[bgmId] : null;
+    const newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const baseTitle = meta.title || sourceId;
+    const vert = path.join(DOWNLOAD_DIR, `${newId}_vert.mp4`);
+    const capOut = path.join(DOWNLOAD_DIR, `${newId}_cap.mp4`);
+    const assFile = path.join(DOWNLOAD_DIR, `${newId}.ass`);
+    const outPath = path.join(DOWNLOAD_DIR, `${newId}.mp4`);
+    const vf = fit === "crop"
+      ? "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30"
+      : "split[a][b];[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=20[bg];[b]scale=1080:1920:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1,fps=30";
+    const enc = (extra) => ["-c:v", "h264_nvenc", "-cq", "23", ...extra];
+    const cleanup = () => { for (const f of [vert, capOut, assFile]) { try { fs.unlinkSync(f); } catch {} } };
+
+    try {
+      socket.emit("tool-progress", { percent: 10 });
+      // 1) 直式（有 BGM → 去掉原音；無 BGM → 保留原音）
+      await ffmpegStep(["-y", "-v", "error", "-i", meta.filepath, "-vf", vf,
+        ...(bgmMeta ? ["-an"] : ["-c:a", "aac"]), ...enc([]), vert], socket);
+
+      socket.emit("tool-progress", { percent: 45 });
+      // 2) 字幕（選填）— 相對路徑 + cwd 避開 Windows 路徑跳脫
+      let cur = vert;
+      if (caption && caption.trim()) {
+        writeShortAss(caption, assFile);
+        await ffmpegStep(["-y", "-v", "error", "-i", path.basename(vert),
+          "-vf", "ass=" + path.basename(assFile), ...(bgmMeta ? ["-an"] : ["-c:a", "copy"]),
+          ...enc([]), path.basename(capOut)], socket, DOWNLOAD_DIR);
+        cur = capOut;
+      }
+
+      socket.emit("tool-progress", { percent: 75 });
+      // 3) 配樂（選填）— 找高光段 + 壓縮壓平 + 淡入淡出 + loop
+      if (bgmMeta) {
+        const dur = await ffprobeDuration(cur);
+        const start = await findMusicHighlight(bgmMeta.filepath, dur);
+        const fo = Math.max(0.3, dur - 1.2).toFixed(2);
+        const af = `[1:a]acompressor=threshold=-24dB:ratio=4:attack=15:release=200:makeup=3,volume=0.5,afade=t=in:st=0:d=0.3,afade=t=out:st=${fo}:d=1.2[a]`;
+        await ffmpegStep(["-y", "-v", "error", "-i", cur, "-ss", String(start),
+          "-stream_loop", "-1", "-i", bgmMeta.filepath, "-filter_complex", af,
+          "-map", "0:v:0", "-map", "[a]", "-t", String(dur),
+          "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", outPath], socket);
+      } else {
+        fs.copyFileSync(cur, outPath);
+      }
+
+      cleanup();
+      if (!fs.existsSync(outPath)) return socket.emit("tool-error", "完成但找不到輸出檔");
+      const niceName = `${baseTitle} (短影音).mp4`;
+      downloadMeta[newId] = { filepath: outPath, title: `${baseTitle} (短影音)` };
+      let size = 0;
+      try { size = fs.statSync(outPath).size; } catch {}
+      recordDownload({ id: newId, title: `${baseTitle} (短影音)`, filename: niceName, mode: "video", ext: ".mp4", size, ts: Date.now(), filepath: outPath });
+      socket.emit("tool-done", { id: newId, filename: niceName, downloadUrl: `/api/file/${newId}` });
+    } catch (e) {
+      cleanup();
+      if (e && e.cancelled) socket.emit("tool-cancelled");
+      else socket.emit("tool-error", "自動短影音失敗：" + ((e && e.message) || "未知錯誤"));
+    }
   });
 });
 

@@ -123,6 +123,7 @@
 
   go.addEventListener("click", async () => {
     hideErr();
+    window.notifyAsk();
 
     // 1) 收集這批要處理的項目
     let items = [];
@@ -178,7 +179,10 @@
     go.disabled = false;
     batchLine.textContent = "";
     if (!doneJobIds.length) showErr("這批全部失敗了，請檢查網址或伺服器狀態。");
-    else window.toast(`完成 ${doneJobIds.length} 份逐字稿`);
+    else {
+      window.toast(`完成 ${doneJobIds.length} 份逐字稿`);
+      window.notify("逐字稿完成", `${doneJobIds.length} 份已完成`);
+    }
     loadHistory();
   });
 

@@ -25,6 +25,20 @@
   );
 })();
 
+// 桌面通知：長時間工作完成時，若分頁在背景就跳系統通知
+window.notifyAsk = () => {
+  try {
+    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  } catch {}
+};
+window.notify = (title, body) => {
+  try {
+    if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+      new Notification(title, { body: body || "", icon: "/icon.svg" });
+    }
+  } catch {}
+};
+
 // 全域 Toast 通知（其他腳本可呼叫 window.toast）
 window.toast = (msg, type = "ok") => {
   const wrap = document.getElementById("toastWrap");
@@ -254,6 +268,7 @@ window.toast = (msg, type = "ok") => {
 
   // --- Download ---
   downloadBtn.addEventListener("click", () => {
+    window.notifyAsk();
     showOnly("progress");
     progressBar.style.width = "0%";
     progressPercent.textContent = "0%";
@@ -295,6 +310,7 @@ window.toast = (msg, type = "ok") => {
     doneFilename.textContent = data.filename;
     doneDownloadLink.href = data.downloadUrl;
     if (window.loadDownloads) window.loadDownloads();
+    window.notify("下載完成", data.filename);
   });
 
   socket.on("error", (msg) => {
