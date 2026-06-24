@@ -147,24 +147,28 @@ def run(cmd: list) -> subprocess.CompletedProcess:
 
 
 def fetch_audio_from_url(url: str, out_base: Path) -> tuple[str, Path]:
-    """用 yt-dlp 抓最佳音訊，回傳 (標題, 下載到的檔案路徑)。"""
-    # 先取標題
-    info = run([sys.executable, "-m", "yt_dlp", "--no-playlist",
-                "--ffmpeg-location", FFMPEG_DIR, "--dump-json", url])
-    title = "audio"
-    if info.returncode == 0:
-        try:
-            title = json.loads(info.stdout).get("title", "audio")
-        except Exception:
-            pass
+    """用 yt-dlp 抓最佳音訊，回傳 (標題, 下載到的檔案路徑)。
+    一次呼叫同時下載並寫出 info.json 取標題（原本拆成 dump-json + 下載兩次呼叫）。"""
     out_tmpl = str(out_base) + ".%(ext)s"
     dl = run([sys.executable, "-m", "yt_dlp", "--no-playlist",
-              "--ffmpeg-location", FFMPEG_DIR,
-              "-f", "bestaudio/best", "-o", out_tmpl, url])
+              "--ffmpeg-location", FFMPEG_DIR, "-f", "bestaudio/best",
+              "--write-info-json", "-o", out_tmpl, url])
     if dl.returncode != 0:
         raise RuntimeError("下載失敗：" + (dl.stderr or "未知錯誤，若為私人內容可能需要 cookies"))
-    files = sorted(out_base.parent.glob(out_base.name + ".*"),
+
+    title = "audio"
+    infos = sorted(out_base.parent.glob(out_base.name + "*.info.json"),
                    key=lambda p: p.stat().st_mtime, reverse=True)
+    if infos:
+        try:
+            title = json.loads(infos[0].read_text(encoding="utf-8", errors="replace")).get("title", "audio")
+        except Exception:
+            pass
+
+    files = sorted(
+        [p for p in out_base.parent.glob(out_base.name + ".*") if not p.name.endswith(".info.json")],
+        key=lambda p: p.stat().st_mtime, reverse=True,
+    )
     if not files:
         raise RuntimeError("下載完成但找不到音訊檔")
     return title, files[0]
@@ -218,7 +222,8 @@ def _subs_to_text(raw: str) -> str:
         if out and (s.startswith(out[-1]) or out[-1].startswith(s)):
             out[-1] = s if len(s) >= len(out[-1]) else out[-1]
             continue
-        if out and out[-1] == s:                # 連續完全重複
+        # 近窗去重：自動字幕常出現 A-B-A 的重複，比對最近幾行
+        if s in out[-4:]:
             continue
         out.append(s)
     return "\n".join(out).strip()
