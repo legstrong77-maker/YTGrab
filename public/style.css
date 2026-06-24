@@ -246,6 +246,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .hist-list:empty{display:none}
 .hist-snippet{margin-top:8px;font-size:.78rem;color:var(--text2);line-height:1.6;background:rgba(0,0,0,.25);border-radius:8px;padding:8px 12px}
 .hist-snippet mark{background:rgba(var(--accent-rgb),.3);color:var(--text);border-radius:3px;padding:0 2px}
+.ts-lang{width:auto;padding:9px 30px 9px 12px;font-size:.76rem;cursor:pointer}
+.ts-trans{margin-top:8px;border-color:rgba(129,140,248,.4);background:rgba(129,140,248,.06)}
 
 /* ===== Toast ===== */
 .toast-wrap{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}

@@ -241,6 +241,40 @@
     el.classList.toggle("is-err", !!isErr);
   }
 
+  // ---- 翻譯（免費雲端）----
+  async function translateText(text, target) {
+    const fd = new FormData();
+    fd.append("text", text);
+    fd.append("target", target);
+    const r = await fetch(API + "/api/translate", { method: "POST", body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || "翻譯失敗");
+    return j.text;
+  }
+  function addTranslate(row, mk, getText, langSel) {
+    mk("🌐 翻譯", async () => {
+      const text = await getText();
+      if (!text) return;
+      const lang = $(langSel).value;
+      let area = row.querySelector(".ts-trans");
+      if (!area) {
+        area = document.createElement("textarea");
+        area.className = "ts-item-text ts-trans";
+        area.readOnly = true;
+        row.appendChild(area);
+      }
+      area.classList.remove("hidden");
+      area.value = "翻譯中…（雲端處理）";
+      try {
+        area.value = await translateText(text, lang);
+        window.toast("翻譯完成");
+      } catch (e) {
+        area.classList.add("hidden");
+        window.toast(e.message || "翻譯失敗", "err");
+      }
+    });
+  }
+
   function finishRow(row, jobId, j) {
     setRowState(row, "done");
     const title = j.title ? j.title : "";
@@ -278,6 +312,7 @@
     });
     mk("⬇ .txt", () => downloadOne(jobId, "txt"));
     mk("⬇ .srt", () => downloadOne(jobId, "srt"));
+    addTranslate(row, mk, () => ta.value, "#tsTransLang");
   }
 
   function flash(row) {
@@ -449,6 +484,7 @@
     });
     mk("⬇ .txt", () => downloadOne(r.id, "txt"));
     mk("⬇ .srt", () => downloadOne(r.id, "srt"));
+    addTranslate(row, mk, async () => ((await ensureText()) ? ta.value : null), "#tsHistTransLang");
     mk("🗑", async () => {
       if (!confirm(`確定刪除「${r.title || r.id}」這筆逐字稿？`)) return;
       try {

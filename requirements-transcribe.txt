@@ -8,4 +8,5 @@ fastapi
 uvicorn[standard]
 python-multipart
 numpy
+deep-translator
 # yt-dlp 你已經裝過了；若沒有：pip install yt-dlp

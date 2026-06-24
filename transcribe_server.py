@@ -527,6 +527,38 @@ def history():
     return out
 
 
+def translate_text(text: str, target: str) -> str:
+    """用 Google（免金鑰）翻譯。中文來源用 auto 會失效，故以 CJK 偵測設來源。"""
+    from deep_translator import GoogleTranslator
+    src = "zh-CN" if re.search(r"[一-鿿]", text) else "auto"
+
+    def tr(s: str) -> str:
+        if not s.strip():
+            return s
+        return GoogleTranslator(source=src, target=target).translate(s)
+
+    # Google 端點單次上限約 5000 字，按行切塊
+    out, buf = [], ""
+    for line in text.split("\n"):
+        if len(buf) + len(line) + 1 > 4500:
+            out.append(tr(buf))
+            buf = ""
+        buf += line + "\n"
+    if buf.strip():
+        out.append(tr(buf))
+    return "\n".join(out).strip()
+
+
+@app.post("/api/translate")
+async def api_translate(text: str = Form(...), target: str = Form("en")):
+    if not text.strip():
+        raise HTTPException(400, "沒有內容可翻譯")
+    try:
+        return {"text": translate_text(text, target)}
+    except Exception as e:
+        raise HTTPException(500, f"翻譯失敗（雲端服務忙碌或被限流，請稍後再試）：{e}")
+
+
 @app.get("/api/search")
 def search(q: str = ""):
     """在歷史逐字稿中做全文搜尋（標題 + 內文），回傳含命中片段。"""
