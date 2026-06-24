@@ -369,7 +369,13 @@ io.on("connection", (socket) => {
       "--progress",
     ];
 
-    if (mode === "audio") {
+    if (mode === "subtitle") {
+      // 只抓字幕檔（人工優先、自動 fallback），轉成 srt
+      // 指定明確語言（避免 en.* 展開成上百種自動翻譯 → 大量請求觸發 429）
+      args.push("--skip-download", "--write-subs", "--write-auto-subs",
+        "--sub-langs", "zh-Hant,zh-TW,zh,zh-Hans,zh-CN,en",
+        "--convert-subs", "srt");
+    } else if (mode === "audio") {
       // 嵌入封面圖與中繼資料：下載的 MP3 在播放器會顯示專輯封面與標題
       args.push("-x", "--audio-format", "mp3", "--audio-quality", "0",
         "--embed-thumbnail", "--embed-metadata");
@@ -443,6 +449,17 @@ io.on("connection", (socket) => {
           }))
           .sort((a, b) => b.time - a.time);
 
+        // 字幕模式：可能有多種語言，依偏好挑（繁中優先），且優先 .srt
+        if (mode === "subtitle" && files.length > 1) {
+          const PREF = ["zh-hant", "zh-tw", "zh-hk", "zh-hans", "zh-cn", "zh", "en"];
+          const score = (n) => {
+            const low = n.toLowerCase();
+            const li = PREF.findIndex((l) => low.includes("." + l + "."));
+            return (low.endsWith(".srt") ? 0 : 100) + (li < 0 ? 50 : li);
+          };
+          files.sort((a, b) => score(a.name) - score(b.name));
+        }
+
         if (files.length > 0) {
           const filepath = path.join(DOWNLOAD_DIR, files[0].name);
           const ext = path.extname(files[0].name);
@@ -467,7 +484,7 @@ io.on("connection", (socket) => {
             downloadUrl: `/api/file/${id}`,
           });
         } else {
-          socket.emit("error", "下載完成但找不到檔案");
+          socket.emit("error", mode === "subtitle" ? "這支影片沒有可下載的字幕" : "下載完成但找不到檔案");
         }
       } else {
         socket.emit(

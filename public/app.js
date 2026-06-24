@@ -173,13 +173,16 @@ window.toast = (msg, type = "ok") => {
     }
   });
 
-  // --- Mode ---
-  document.querySelectorAll(".mode-btn").forEach((btn) => {
+  // --- Mode --- (限定下載器自己的格式按鈕，避免影響逐字稿/字幕分頁的 .mode-btn)
+  const dlModeBtns = document.querySelectorAll("#infoSection .mode-selector .mode-btn");
+  const clipBox = document.querySelector(".clip-box");
+  dlModeBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".mode-btn").forEach((b) => b.classList.remove("active"));
+      dlModeBtns.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentMode = btn.dataset.mode;
-      qualitySection.classList.toggle("hidden", currentMode === "audio");
+      qualitySection.classList.toggle("hidden", currentMode !== "video");
+      if (clipBox) clipBox.classList.toggle("hidden", currentMode === "subtitle");
     });
   });
 
