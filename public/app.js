@@ -233,6 +233,19 @@ window.toast = (msg, type = "ok") => {
 
       qualityOptions.appendChild(chip);
     });
+
+    // 套用設定的預設畫質（若該畫質可選）
+    const sv = window.ytgrabSettings ? window.ytgrabSettings() : null;
+    if (sv && sv.dlQuality !== undefined) {
+      const want = String(sv.dlQuality);
+      const chips = [...qualityOptions.querySelectorAll(".quality-chip")];
+      const match = chips.find((c) => c.dataset.quality === want);
+      if (match) {
+        chips.forEach((c) => c.classList.remove("active"));
+        match.classList.add("active");
+        currentQuality = want === "" ? null : Number(want);
+      }
+    }
   }
 
   // --- Download ---

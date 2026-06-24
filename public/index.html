@@ -957,6 +957,50 @@
       </footer>
     </main>
 
+    <button id="settingsBtn" class="settings-fab" title="設定">⚙️</button>
+
+    <div class="modal-overlay" id="settingsModal">
+      <div class="card glass modal-card">
+        <div class="modal-head">
+          <h2>⚙️ 設定</h2>
+          <button id="settingsClose" class="modal-x" title="關閉">✕</button>
+        </div>
+
+        <div class="set-row">
+          <span class="set-label">預設下載格式</span>
+          <div class="bd-seg-group" id="setDlMode">
+            <button class="bd-seg active" data-m="video">影片 MP4</button>
+            <button class="bd-seg" data-m="audio">音訊 MP3</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <span class="set-label">預設下載畫質</span>
+          <div class="bd-seg-group" id="setDlQuality">
+            <button class="bd-seg" data-q="">最佳</button>
+            <button class="bd-seg active" data-q="1080">1080p</button>
+            <button class="bd-seg" data-q="720">720p</button>
+            <button class="bd-seg" data-q="480">480p</button>
+          </div>
+        </div>
+        <div class="set-row set-row-toggle">
+          <span class="set-label">逐字稿預設「優先抓現成字幕」</span>
+          <label class="ts-toggle set-toggle">
+            <input type="checkbox" id="setPreferSubs" checked />
+            <span class="ts-toggle-track"><span class="ts-toggle-thumb"></span></span>
+          </label>
+        </div>
+        <div class="set-row set-row-toggle">
+          <span class="set-label">顯示頁面底部的技術說明區塊</span>
+          <label class="ts-toggle set-toggle">
+            <input type="checkbox" id="setShowDocs" checked />
+            <span class="ts-toggle-track"><span class="ts-toggle-thumb"></span></span>
+          </label>
+        </div>
+
+        <p class="set-hint">設定會記在這台電腦的瀏覽器，下次打開自動套用。</p>
+      </div>
+    </div>
+
     <div id="dropOverlay" class="drop-overlay">
       <div class="drop-overlay-inner">
         <div class="drop-overlay-icon">🎙</div>
@@ -973,6 +1017,7 @@
     <script src="burn.js"></script>
     <script src="toolbox.js"></script>
     <script src="transcribe.js"></script>
+    <script src="settings.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
