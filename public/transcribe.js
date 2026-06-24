@@ -112,6 +112,7 @@
   let doneJobIds = []; // 完成的 job_id，供打包下載
   let currentJobId = null;
   let batchCancelled = false;
+  const skipped = new Set(); // 佇列中被移除（略過）的項目 index
 
   $("#tsCancel").addEventListener("click", async () => {
     batchCancelled = true;
@@ -144,6 +145,7 @@
     doneJobIds = [];
     batchCancelled = false;
     currentJobId = null;
+    skipped.clear();
     batchList.innerHTML = "";
     resultCard.classList.remove("hidden");
     updateBatchDownloadButtons();
@@ -156,6 +158,8 @@
         setRowState(rows[i], "error", "已取消");
         continue;
       }
+      if (skipped.has(i)) continue; // 已從佇列移除
+      rows[i].querySelector(".ts-remove")?.remove(); // 開始處理就不能再移除
       batchLine.textContent = `整批進度 ${i + 1} / ${items.length}`;
       bar.style.width = "0%";
       stage.textContent = "送出中…";
@@ -240,6 +244,17 @@
       </div>
       <textarea class="ts-item-text hidden" readonly></textarea>`;
     row.querySelector(".ts-item-title").textContent = `${idx + 1}. ${item.label}`;
+    // 佇列管理：開始處理前可從佇列移除
+    const rm = document.createElement("button");
+    rm.className = "btn btn-ghost ts-mini ts-remove";
+    rm.textContent = "✕";
+    rm.title = "從佇列移除";
+    rm.addEventListener("click", () => {
+      skipped.add(idx);
+      setRowState(row, "error", "已略過");
+      rm.remove();
+    });
+    row.querySelector(".ts-item-actions").appendChild(rm);
     batchList.appendChild(row);
     return row;
   }

@@ -9,6 +9,7 @@
   let quality = ""; // "" = 最佳
   let busy = false;
   let bdCancelled = false;
+  const bdSkipped = new Set(); // 佇列中被移除的項目 index
 
   // 格式切換
   document.querySelectorAll("#bdMode .bd-seg").forEach((b) =>
@@ -37,6 +38,7 @@
     }
     busy = true;
     bdCancelled = false;
+    bdSkipped.clear();
     goBtn.disabled = true;
     $("#bdCancel").classList.remove("hidden");
     listEl.innerHTML = "";
@@ -47,6 +49,8 @@
         for (let j = i + 1; j < rows.length; j++) setState(rows[j], "error", "已取消");
         break;
       }
+      if (bdSkipped.has(i)) continue;
+      rows[i].querySelector(".ts-remove")?.remove();
       await downloadOne(urls[i], rows[i]);
     }
     busy = false;
@@ -140,6 +144,16 @@
       </div>
       <div class="progress-bar-wrap bd-progwrap"><div class="progress-bar bd-bar"></div></div>`;
     row.querySelector(".ts-item-title").textContent = `${idx + 1}. ${url}`;
+    const rm = document.createElement("button");
+    rm.className = "btn btn-ghost ts-mini ts-remove";
+    rm.textContent = "✕";
+    rm.title = "從佇列移除";
+    rm.addEventListener("click", () => {
+      bdSkipped.add(idx);
+      setState(row, "error", "已略過");
+      rm.remove();
+    });
+    row.querySelector(".ts-item-actions").appendChild(rm);
     listEl.appendChild(row);
     return row;
   }
