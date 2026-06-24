@@ -8,6 +8,7 @@
   let mode = "video";
   let quality = ""; // "" = 最佳
   let busy = false;
+  let bdCancelled = false;
 
   // 格式切換
   document.querySelectorAll("#bdMode .bd-seg").forEach((b) =>
@@ -35,14 +36,28 @@
       return;
     }
     busy = true;
+    bdCancelled = false;
     goBtn.disabled = true;
+    $("#bdCancel").classList.remove("hidden");
     listEl.innerHTML = "";
     const rows = urls.map((u, i) => makeRow(u, i));
     for (let i = 0; i < urls.length; i++) {
+      if (bdCancelled) {
+        setState(rows[i], "error", "已取消");
+        for (let j = i + 1; j < rows.length; j++) setState(rows[j], "error", "已取消");
+        break;
+      }
       await downloadOne(urls[i], rows[i]);
     }
     busy = false;
     goBtn.disabled = false;
+    $("#bdCancel").classList.add("hidden");
+  });
+
+  $("#bdCancel").addEventListener("click", () => {
+    bdCancelled = true;
+    socket.emit("cancel");
+    window.toast("正在取消…");
   });
 
   function downloadOne(url, row) {
@@ -84,14 +99,21 @@
         setState(row, "error", typeof msg === "string" ? msg : "下載失敗");
         resolve();
       };
+      const onCancelled = () => {
+        cleanup();
+        setState(row, "error", "已取消");
+        resolve();
+      };
       function cleanup() {
         socket.off("progress", onProg);
         socket.off("done", onDone);
         socket.off("error", onErr);
+        socket.off("cancelled", onCancelled);
       }
       socket.on("progress", onProg);
       socket.on("done", onDone);
       socket.on("error", onErr);
+      socket.on("cancelled", onCancelled);
       setState(row, "running", "下載中…");
       socket.emit("download", {
         url,

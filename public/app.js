@@ -297,6 +297,13 @@ window.toast = (msg, type = "ok") => {
     showOnly("info");
   });
 
+  socket.on("cancelled", () => {
+    showOnly("info");
+    if (window.toast) window.toast("已取消下載");
+  });
+
+  $("#cancelDownloadBtn").addEventListener("click", () => socket.emit("cancel"));
+
   // --- New Download ---
   newDownloadBtn.addEventListener("click", () => {
     urlInput.value = "";

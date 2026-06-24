@@ -205,6 +205,12 @@
     prog.classList.add("hidden");
     showErr(typeof msg === "string" ? msg : "處理失敗");
   });
+  socket.on("tool-cancelled", () => {
+    go.disabled = false;
+    prog.classList.add("hidden");
+    window.toast("已取消");
+  });
+  $("#tbCancel").addEventListener("click", () => socket.emit("cancel"));
 
   function showErr(m) {
     err.textContent = m;

@@ -11,6 +11,15 @@ echo 啟動兩個服務（輸出寫入 transcribe_server.log / server.log）...
 echo 重要：輸出導向 log 檔，避免背景主控台卡住程式（Windows console 已知問題）。
 echo.
 
+REM 防呆：若主站(3000)已在執行就不重複啟動，直接開瀏覽器
+powershell -NoProfile -Command "try{(New-Object Net.Sockets.TcpClient).Connect('localhost',3000);exit 1}catch{exit 0}" >nul 2>&1
+if errorlevel 1 (
+  echo 服務已在執行中，直接開啟瀏覽器。
+  start "" http://localhost:3000
+  timeout /t 3 >nul
+  exit /b
+)
+
 REM /min 最小化視窗；cmd /c "... > log 2>&1" 把輸出導到檔案，主控台永遠不會阻塞程式
 start "逐字稿後端 (8001)" /min cmd /c "python transcribe_server.py > transcribe_server.log 2>&1"
 start "YTGrab 主站 (3000)" /min cmd /c "node server.js > server.log 2>&1"

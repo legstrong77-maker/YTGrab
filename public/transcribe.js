@@ -110,6 +110,16 @@
   const dlAllSrt = $("#tsDlAllSrt");
 
   let doneJobIds = []; // 完成的 job_id，供打包下載
+  let currentJobId = null;
+  let batchCancelled = false;
+
+  $("#tsCancel").addEventListener("click", async () => {
+    batchCancelled = true;
+    if (currentJobId) {
+      try { await fetch(API + "/api/cancel/" + currentJobId, { method: "POST" }); } catch {}
+    }
+    window.toast("正在停止…");
+  });
 
   go.addEventListener("click", async () => {
     hideErr();
@@ -131,6 +141,8 @@
     // 2) 準備 UI
     go.disabled = true;
     doneJobIds = [];
+    batchCancelled = false;
+    currentJobId = null;
     batchList.innerHTML = "";
     resultCard.classList.remove("hidden");
     updateBatchDownloadButtons();
@@ -139,19 +151,26 @@
     // 3) 依序處理
     prog.classList.remove("hidden");
     for (let i = 0; i < items.length; i++) {
+      if (batchCancelled) {
+        setRowState(rows[i], "error", "已取消");
+        continue;
+      }
       batchLine.textContent = `整批進度 ${i + 1} / ${items.length}`;
       bar.style.width = "0%";
       stage.textContent = "送出中…";
       setRowState(rows[i], "running", "處理中…");
       try {
         const jobId = await submitJob(items[i]);
+        currentJobId = jobId;
         const res = await pollJob(jobId, rows[i]);
         finishRow(rows[i], jobId, res);
         doneJobIds.push(jobId);
         updateBatchDownloadButtons();
       } catch (e) {
-        setRowState(rows[i], "error", connErr(e));
+        if (e && e.cancelled) setRowState(rows[i], "error", "已取消");
+        else setRowState(rows[i], "error", connErr(e));
       }
+      currentJobId = null;
     }
 
     // 4) 收尾
@@ -190,6 +209,9 @@
           if (j.state === "done") {
             clearInterval(t);
             resolve(j);
+          } else if (j.state === "cancelled") {
+            clearInterval(t);
+            reject({ cancelled: true });
           } else if (j.state === "error") {
             clearInterval(t);
             reject(new Error(j.error || "辨識失敗"));

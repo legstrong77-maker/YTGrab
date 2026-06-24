@@ -360,6 +360,9 @@ def process_job(job_id: str):
         segments = []   # (start, end, text)
         done = 0
         for b in range(0, len(valid), BATCH_SIZE):
+            if job.get("cancel"):
+                job.update(state="cancelled", stage="已取消")
+                return
             grp = valid[b:b + BATCH_SIZE]
             pieces = [wave[i * step:(i + 1) * step] for i in grp]
             texts = transcribe_batch(pieces)
@@ -719,6 +722,14 @@ def burn_download(job_id: str):
         raise HTTPException(404, "尚未完成或不存在")
     safe = re.sub(r'[\\/:*?"<>|]', "_", title_for(job_id))
     return FileResponse(out, filename=f"{safe}_字幕.mp4", media_type="video/mp4")
+
+
+@app.post("/api/cancel/{job_id}")
+def cancel_job(job_id: str):
+    job = JOBS.get(job_id)
+    if job and job.get("state") == "running":
+        job["cancel"] = True
+    return {"ok": True}
 
 
 @app.get("/api/health")

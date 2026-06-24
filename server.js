@@ -44,6 +44,7 @@ function parseFfmpegTime(line) {
 }
 function runFfmpeg(args, duration, socket, onDone, fallbackArgs, cwd) {
   const proc = spawn(FFMPEG, args, cwd ? { cwd } : undefined);
+  socket.activeProc = proc;
   proc.stderr.on("data", (c) => {
     const t = parseFfmpegTime(c.toString());
     if (t != null && duration > 0) {
@@ -51,6 +52,12 @@ function runFfmpeg(args, duration, socket, onDone, fallbackArgs, cwd) {
     }
   });
   proc.on("close", (code) => {
+    socket.activeProc = null;
+    if (socket.cancelled) {
+      socket.cancelled = false;
+      socket.emit("tool-cancelled");
+      return;
+    }
     if (code === 0) return onDone();
     if (fallbackArgs) return runFfmpeg(fallbackArgs, duration, socket, onDone, null, cwd);
     socket.emit("tool-error", "處理失敗（ffmpeg 退出碼 " + code + "）");
@@ -328,6 +335,14 @@ app.get("/api/playlist", (req, res) => {
 
 // Socket.io for download with progress
 io.on("connection", (socket) => {
+  // 取消：殺掉這個 socket 目前正在跑的子程序（下載 / 工具）
+  socket.on("cancel", () => {
+    socket.cancelled = true;
+    if (socket.activeProc) {
+      try { socket.activeProc.kill(); } catch {}
+    }
+  });
+
   socket.on("download", (opts) => {
     const { url, mode, quality, title, clipStart, clipEnd } = opts;
     const platform = getPlatform(url);
@@ -368,6 +383,7 @@ io.on("connection", (socket) => {
     const proc = spawn("python", args, {
       env: { ...process.env, PYTHONIOENCODING: "utf-8" },
     });
+    socket.activeProc = proc;
 
     proc.stdout.on("data", (chunk) => {
       const text = chunk.toString("utf-8");
@@ -391,6 +407,18 @@ io.on("connection", (socket) => {
     });
 
     proc.on("close", (code) => {
+      socket.activeProc = null;
+      if (socket.cancelled) {
+        socket.cancelled = false;
+        // 清掉被取消下載的半成品（.part 等）
+        try {
+          fs.readdirSync(DOWNLOAD_DIR)
+            .filter((f) => f.startsWith(id))
+            .forEach((f) => { try { fs.unlinkSync(path.join(DOWNLOAD_DIR, f)); } catch {} });
+        } catch {}
+        socket.emit("cancelled");
+        return;
+      }
       if (code === 0) {
         // Find the output file (id.mp4 or id.mp3 etc.)
         const files = fs
@@ -465,11 +493,14 @@ io.on("connection", (socket) => {
       const tmpl = path.join(DOWNLOAD_DIR, `${newId}_part_%03d.mp4`);
       const proc = spawn(FFMPEG, ["-y", "-i", src, "-c", "copy", "-f", "segment",
         "-segment_time", String(seg), "-reset_timestamps", "1", tmpl]);
+      socket.activeProc = proc;
       proc.stderr.on("data", (c) => {
         const t = parseFfmpegTime(c.toString());
         if (t != null && duration > 0) socket.emit("tool-progress", { percent: Math.min(99, Math.round((t / duration) * 100)) });
       });
       proc.on("close", (code) => {
+        socket.activeProc = null;
+        if (socket.cancelled) { socket.cancelled = false; socket.emit("tool-cancelled"); return; }
         if (code !== 0) return socket.emit("tool-error", "切割失敗（ffmpeg 退出碼 " + code + "）");
         const parts = fs.readdirSync(DOWNLOAD_DIR).filter((f) => f.startsWith(`${newId}_part_`)).sort();
         if (!parts.length) return socket.emit("tool-error", "切割完成但找不到分段");

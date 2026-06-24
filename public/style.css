@@ -382,6 +382,8 @@ body.hide-docs .how-it-works{display:none!important}
 
 .ts-progress{margin-top:20px}
 .ts-stage{margin-top:12px;font-size:.82rem;color:var(--text2)}
+.cancel-btn-full{width:100%;margin-top:16px;color:#ff9bb4}
+.cancel-btn-full:hover{border-color:rgba(255,64,112,.4);background:rgba(var(--accent-rgb),.06);color:#ff9bb4}
 .ts-err{margin-top:16px;color:#ff9bb4;font-size:.82rem;line-height:1.6;background:rgba(var(--accent-rgb),.07);border:1px solid rgba(255,64,112,.3);border-radius:8px;padding:12px 14px}
 
 .ts-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
