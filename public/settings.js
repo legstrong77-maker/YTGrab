@@ -2,7 +2,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const KEY = "ytgrab_settings";
-  const DEFAULTS = { dlMode: "video", dlQuality: "1080", preferSubs: true, showDocs: true };
+  const DEFAULTS = { dlMode: "video", dlQuality: "1080", preferSubs: true, showDocs: true, cookiesBrowser: "" };
 
   function load() {
     try {
@@ -32,6 +32,7 @@
     segActive("#setDlQuality", "q", S.dlQuality);
     $("#setPreferSubs").checked = S.preferSubs;
     $("#setShowDocs").checked = S.showDocs;
+    $("#setCookies").value = S.cookiesBrowser;
   }
   function segActive(sel, attr, val) {
     document.querySelectorAll(sel + " .bd-seg").forEach((b) =>
@@ -48,6 +49,7 @@
   );
   $("#setPreferSubs").addEventListener("change", (e) => { S.preferSubs = e.target.checked; save(S); apply(); });
   $("#setShowDocs").addEventListener("change", (e) => { S.showDocs = e.target.checked; save(S); apply(); });
+  $("#setCookies").addEventListener("change", (e) => { S.cookiesBrowser = e.target.value; save(S); apply(); });
 
   // ---- 開關面板 ----
   const modal = $("#settingsModal");

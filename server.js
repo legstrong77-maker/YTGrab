@@ -119,6 +119,12 @@ function buildBaseArgs() {
   ];
 }
 
+// 從瀏覽器讀 cookies（下載私人 / 需登入內容用）
+const VALID_BROWSERS = ["chrome", "edge", "firefox", "brave", "opera", "vivaldi", "chromium"];
+function cookieArgs(browser) {
+  return VALID_BROWSERS.includes(browser) ? ["--cookies-from-browser", browser] : [];
+}
+
 // File download API - handles any filename safely
 app.get("/api/file/:id", (req, res) => {
   const id = req.params.id;
@@ -215,6 +221,7 @@ app.get("/api/info", async (req, res) => {
 
   const args = [
     ...buildBaseArgs(),
+    ...cookieArgs(req.query.cookies),
     "--dump-json",
     url,
   ];
@@ -344,7 +351,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("download", (opts) => {
-    const { url, mode, quality, title, clipStart, clipEnd } = opts;
+    const { url, mode, quality, title, clipStart, clipEnd, cookiesBrowser } = opts;
     const platform = getPlatform(url);
     if (!platform.supported) {
       socket.emit("error", platform.error);
@@ -363,12 +370,15 @@ io.on("connection", (socket) => {
     ];
 
     if (mode === "audio") {
-      args.push("-x", "--audio-format", "mp3", "--audio-quality", "0");
+      // 嵌入封面圖與中繼資料：下載的 MP3 在播放器會顯示專輯封面與標題
+      args.push("-x", "--audio-format", "mp3", "--audio-quality", "0",
+        "--embed-thumbnail", "--embed-metadata");
     } else {
       const fmt = quality
         ? `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`
         : "bestvideo+bestaudio/best";
-      args.push("-f", fmt, "--merge-output-format", "mp4");
+      args.push("-f", fmt, "--merge-output-format", "mp4",
+        "--embed-metadata", "--embed-chapters");
     }
 
     // 剪裁：只下載指定時間段（a→b）
@@ -377,6 +387,9 @@ io.on("connection", (socket) => {
       const section = `*${ts(clipStart) || "0:00"}-${ts(clipEnd) || "inf"}`;
       args.push("--download-sections", section, "--force-keyframes-at-cuts");
     }
+
+    // 私人 / 需登入內容：用瀏覽器 cookies
+    args.push(...cookieArgs(cookiesBrowser));
 
     args.push("-o", outTemplate, url);
 

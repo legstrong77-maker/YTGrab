@@ -143,7 +143,8 @@ window.toast = (msg, type = "ok") => {
     fetchBtn.disabled = true;
 
     try {
-      const res = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+      const ck = (window.ytgrabSettings && window.ytgrabSettings().cookiesBrowser) || "";
+      const res = await fetch(`/api/info?url=${encodeURIComponent(url)}${ck ? "&cookies=" + ck : ""}`);
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error);
@@ -268,6 +269,7 @@ window.toast = (msg, type = "ok") => {
       title: videoTitle.textContent || "",
       clipStart: cs ? cs.value : "",
       clipEnd: ce ? ce.value : "",
+      cookiesBrowser: (window.ytgrabSettings && window.ytgrabSettings().cookiesBrowser) || "",
     });
   });
 

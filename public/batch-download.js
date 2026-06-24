@@ -65,8 +65,9 @@
       setState(row, "running", "解析中…");
       // 1) 取得標題與縮圖
       let title = "";
+      const ck = (window.ytgrabSettings && window.ytgrabSettings().cookiesBrowser) || "";
       try {
-        const r = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+        const r = await fetch(`/api/info?url=${encodeURIComponent(url)}${ck ? "&cookies=" + ck : ""}`);
         const d = await r.json();
         if (!r.ok) {
           setState(row, "error", d.error || "解析失敗");
@@ -120,6 +121,7 @@
         mode,
         quality: mode === "video" ? quality : null,
         title,
+        cookiesBrowser: ck,
       });
     });
   }
