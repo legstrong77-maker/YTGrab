@@ -20,6 +20,10 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <script>
+      // 主題即時套用，避免亮色被深色閃一下
+      try { if ((JSON.parse(localStorage.getItem("ytgrab_settings") || "{}").theme) === "light") document.body.classList.add("light"); } catch (e) {}
+    </script>
     <!-- Password Overlay -->
     <div class="auth-overlay" id="authOverlay">
       <div class="card glass auth-card">
@@ -1014,6 +1018,13 @@
           <button id="settingsClose" class="modal-x" title="關閉">✕</button>
         </div>
 
+        <div class="set-row">
+          <span class="set-label">外觀主題</span>
+          <div class="bd-seg-group" id="setTheme">
+            <button class="bd-seg active" data-theme="dark">🌙 深色</button>
+            <button class="bd-seg" data-theme="light">☀️ 亮色</button>
+          </div>
+        </div>
         <div class="set-row">
           <span class="set-label">預設下載格式</span>
           <div class="bd-seg-group" id="setDlMode">

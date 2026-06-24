@@ -2,7 +2,7 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const KEY = "ytgrab_settings";
-  const DEFAULTS = { dlMode: "video", dlQuality: "1080", preferSubs: true, showDocs: true, cookiesBrowser: "" };
+  const DEFAULTS = { theme: "dark", dlMode: "video", dlQuality: "1080", preferSubs: true, showDocs: true, cookiesBrowser: "" };
 
   function load() {
     try {
@@ -19,6 +19,9 @@
 
   // ---- 套用到 UI / 全站 ----
   function apply() {
+    // 外觀主題
+    document.body.classList.toggle("light", S.theme === "light");
+    segActive("#setTheme", "theme", S.theme);
     // 逐字稿預設字幕開關
     const ps = $("#tsPreferSubs");
     if (ps) ps.checked = S.preferSubs;
@@ -41,6 +44,9 @@
   }
 
   // ---- 設定面板互動 ----
+  document.querySelectorAll("#setTheme .bd-seg").forEach((b) =>
+    b.addEventListener("click", () => { S.theme = b.dataset.theme; save(S); apply(); })
+  );
   document.querySelectorAll("#setDlMode .bd-seg").forEach((b) =>
     b.addEventListener("click", () => { S.dlMode = b.dataset.m; save(S); apply(); })
   );
