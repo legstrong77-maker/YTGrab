@@ -29,9 +29,16 @@
     })
   );
 
+  // 從整段文字抓出所有網址（容忍換行/空白/逗號分隔）
+  function extractUrls(text) {
+    const m = (text || "").match(/https?:\/\/[\w.\-~:\/?#\[\]@!$&'()*+=%]+/gi);
+    if (m && m.length) return m.map((u) => u.replace(/[.,;)]+$/, ""));
+    return (text || "").split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+  }
+
   goBtn.addEventListener("click", async () => {
     if (busy) return;
-    const urls = urlsEl.value.split("\n").map((s) => s.trim()).filter(Boolean);
+    const urls = extractUrls(urlsEl.value);
     if (!urls.length) {
       window.toast("請先貼上至少一個網址", "err");
       return;

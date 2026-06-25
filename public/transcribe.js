@@ -122,6 +122,13 @@
     window.toast("正在停止…");
   });
 
+  // 從整段文字抓出所有網址（容忍換行/空白/逗號分隔，或混在文字中）
+  function extractUrls(text) {
+    const m = (text || "").match(/https?:\/\/[\w.\-~:\/?#\[\]@!$&'()*+=%]+/gi);
+    if (m && m.length) return m.map((u) => u.replace(/[.,;)]+$/, ""));
+    return (text || "").split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+  }
+
   go.addEventListener("click", async () => {
     hideErr();
     window.notifyAsk();
@@ -129,10 +136,7 @@
     // 1) 收集這批要處理的項目
     let items = [];
     if (src === "url") {
-      const lines = $("#tsUrl").value
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const lines = extractUrls($("#tsUrl").value);
       if (!lines.length) return showErr("請先貼上至少一個網址");
       items = lines.map((u) => ({ kind: "url", value: u, label: u }));
     } else {
